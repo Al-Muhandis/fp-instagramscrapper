@@ -206,7 +206,7 @@ const
 implementation
 
 uses
-  RUtils, strutils, LazUTF8, jsonparser, jsonscanner;
+  strutils, LazUTF8, jsonparser, jsonscanner;
 
 const
   MAX_COMMENTS_PER_REQUEST = 300;
