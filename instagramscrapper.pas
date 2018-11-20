@@ -75,6 +75,7 @@ type
     function getHighlightStoriesLinkIDs(const variables: TJSONObject): String;
     function getHighlightStoriesLink1(const variables: TJSONObject): String;
     class function getAccountMediasJsonLink(AUserID: Int64; const After: String): String;
+    procedure LogMesage(EventType: TEventType; const Msg: String);
     procedure ParseCookies(AHTTPClient: TFPHTTPClient; ASession: TStrings);
     procedure ParseSetCookie(AHeaders: TStrings; ASession: TStrings; const AName: String);
     function Parse_SharedData(const JSONData: String): Boolean;
@@ -512,6 +513,12 @@ begin
   Result:=ReplaceStr(Result, '{end_cursor}', After);
 end;
 
+procedure TInstagramParser.LogMesage(EventType: TEventType; const Msg: String);
+begin
+  if Assigned(FLogger) then
+    FLogger.Log(EventType, Msg);
+end;
+
 procedure TInstagramParser.ParseCookies(AHTTPClient: TFPHTTPClient; ASession: TStrings);
 begin
   ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'csrftoken');
@@ -572,8 +579,8 @@ begin
     except
       on E: Exception do
       begin
-        Logger.Log(etError, 'Не удалось распарсить jsonUser. '+ e.ClassName+': '+e.Message);
-        Logger.Log(etDebug, FJSON_Data.AsJSON);
+        LogMesage(etError, 'Не удалось распарсить jsonUser. '+ e.ClassName+': '+e.Message);
+        LogMesage(etDebug, FJSON_Data.AsJSON);
         FjsonUser:=nil;
       end;
     end;
@@ -597,7 +604,6 @@ var
   s: String;
 begin
   try
-    //Logger.Debug('parse json user '+FjsonUser.AsJSON);
     FBiography:=FjsonUser.Get('biography', '');
     FHomePage:=FjsonUser.Get('external_url', '');
     if FjsonUser.Find('edge_followed_by',jo) then             //followed_by
@@ -649,7 +655,6 @@ begin
     FLikes:=FjsonPost.Objects['edge_media_preview_like'].Integers['count'];
 
     jsonUser:=FjsonPost.Objects['owner'].Clone as TJSONObject;
-//    Logger.Debug(jsonUser.AsJSON);
     Parse_jsonUser(False);
 
     Result:=True;
@@ -1194,8 +1199,7 @@ begin
     end;
   except
     on E: Exception do
-        if Assigned(Logger) then
-          Logger.Error('Error while GET ('+AnUrl+') request: '+E.Message);
+      LogMesage(etError, 'Error while GET ('+AnUrl+') request: '+E.Message);
   end;
   Result:=FHTTPCode=200;
 end;
@@ -1208,7 +1212,6 @@ begin
   if HTTPGetText(AnURL) then
   begin
     try
-//      Logger.Debug('CP2 '+FResponse);
       jsonParser:=TJSONParser.Create(FResponse, DefaultOptions);
       try
         Result:=jsonParser.Parse as TJSONObject;
@@ -1219,8 +1222,7 @@ begin
       on E: Exception do
         begin
           Result:=nil;
-          if Assigned(Logger) then
-            Logger.Error('Error while parse JSON by URL ('+AnUrl+'): '+E.Message);
+          LogMesage(etError, 'Error while parse JSON by URL ('+AnUrl+'): '+E.Message);
         end;
     end;
   end;
@@ -1229,18 +1231,10 @@ end;
 function TInstagramParser.Login(Force: Boolean): Boolean;
 var
   AFormData: TStrings;
-//  mid, csrftoken: String;
 begin
-  //Logger.Debug('CP1.2.1');
   if (FSessionUserName = EmptyStr) or (FSessionPassword = EmptyStr) then
-  begin         //to-do
-//      throw new InstagramAuthException("User credentials not provided");
-//  Не представлены логин и пароль
-    //Logger.Debug('CP1.2.2');
+   //to-do
     Exit(False);
-  end;
-  //Logger.Debug('CP1.2.3');
-  //Logger.Debug('CP1.2.4');
   if Force or not IsLoggenIn(UserSession) then
   begin
     HTTPGetText(BASE_URL+'/');
@@ -1298,7 +1292,7 @@ function TInstagramParser.getStories(AReel_ids: TJSONArray): TJSONArray;
 var
   jsonResponse, variables: TJSONObject;
   edges, reels_media: TJSONArray;
-  edge{, user}: TJSONEnum;
+  edge: TJSONEnum;
 begin
   Result:=nil;
   variables:=TJSONObject.Create(['precomposed_overlay', False, 'reel_ids', TJSONArray.Create]);
@@ -1402,8 +1396,7 @@ begin
   if Login() then
     Result:=getStories(reel_ids)
   else
-    if Assigned(Logger) then
-      Logger.Error('Failed to login');
+    LogMesage(etError, 'Failed to login');
 end;
 
 function TInstagramParser.LoginNGetHLStories(AUserID: Int64): Tjson_HLStories;
