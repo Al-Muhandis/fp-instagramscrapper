@@ -28,7 +28,7 @@ begin
         Writeln('Follows: '+IntToStr(Instagram.Follows)+', FolowedBy: '+IntToStr(Instagram.FollowedBy));
         Write('Are You want to continue? (Y/N): ');
         Readln(S);
-      until lowercase(S)<>'y';
+      until lowercase(S)='y';
     finally
       Instagram.Free;
     end;
