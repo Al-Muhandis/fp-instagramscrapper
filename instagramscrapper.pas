@@ -892,12 +892,19 @@ begin
 end;
 
 function TInstagramParser.getMediasByPostCode(const ACode: String): Boolean;
+var
+  jsonResponce: TJSONObject;
 begin
   try
     Result:=False;
-    jsonPost:=(HTTPGetJSON(getMediaLink(ACode)) as TJSONObject).Objects['graphql'].Objects['shortcode_media'];
-    if Assigned(jsonPost) then
-      Result:=Parse_jsonPost;
+    jsonResponce:=HTTPGetJSON(getMediaLink(ACode)) as TJSONObject;
+    try
+      jsonPost:=jsonResponce.Objects['graphql'].Objects['shortcode_media'].Clone as TJSONObject;
+      if Assigned(jsonPost) then
+        Result:=Parse_jsonPost;
+    finally
+      jsonResponce.Free;
+    end;
   except
     Result:=False;
   end;
@@ -1233,8 +1240,10 @@ var
   AFormData: TStrings;
 begin
   if (FSessionUserName = EmptyStr) or (FSessionPassword = EmptyStr) then
-   //to-do
+  begin
+    LogMesage(etError, 'Username or password not specified!');
     Exit(False);
+  end;
   if Force or not IsLoggenIn(UserSession) then
   begin
     HTTPGetText(BASE_URL+'/');
