@@ -207,7 +207,7 @@ const
 implementation
 
 uses
-  strutils, LazUTF8, jsonparser, jsonscanner;
+  strutils, jsonparser, jsonscanner;
 
 const
   MAX_COMMENTS_PER_REQUEST = 300;
@@ -579,7 +579,7 @@ begin
     except
       on E: Exception do
       begin
-        LogMesage(etError, 'Не удалось распарсить jsonUser. '+ e.ClassName+': '+e.Message);
+        LogMesage(etError, 'Unable to parse jsonUser. '+ e.ClassName+': '+e.Message);
         LogMesage(etDebug, FJSON_Data.AsJSON);
         FjsonUser:=nil;
       end;
