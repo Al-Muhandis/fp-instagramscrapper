@@ -97,8 +97,8 @@ begin
     for i:=0 to FInstagramParser.Videos.Count-1 do
       AProperties.Values['Video'+IntToStr(i)]:=FInstagramParser.Videos[i];
     AProperties.SaveToFile('~MediaProperties.txt');
-    AssertTrue('Empty media content',
-      FInstagramParser.Images.Count+FInstagramParser.Images.Count>0);
+    CheckNotEquals(FInstagramParser.Images.Count+FInstagramParser.Videos.Count, 0,
+      'Empty media content');
   finally
     AProperties.Free;
   end;
