@@ -5,46 +5,123 @@ unit testinstagram;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testutils, testregistry, InstagramScrapper, fpjson;
+  Classes, SysUtils, fpcunit, testutils, testregistry, InstagramScrapper, fpjson, IniFiles;
 
 type
 
-  { TTestInstagram }
+  { TTestInstagramBase }
 
-  TTestInstagram= class(TTestCase)
+  TTestInstagramBase= class(TTestCase)
   private
+    FConf: TMemIniFile;
     FInstagramParser: TInstagramParser;
-    procedure SaveJSONObject(AnObject: TJSONObject; const AFileName: String);
+    FTargetMediaShortCode: String;
+    FTargetUserName: String;
+    procedure SaveJSONObject(AData: TJSONData; const AFileName: String);
   protected
     procedure SetUp; override;
     procedure TearDown; override;
   public
     procedure AccountProperties;
     procedure MediaProperties;
+    property TargetUsername: String read FTargetUserName;
+    property TargetMedia: String read FTargetMediaShortCode;
+  end;
+
+  TTestInstagram=class(TTestInstagramBase)
   published
     procedure TestGetParseJSONAccount;
     procedure TestGetParseJSONMedia;
   end;
 
+  { TTestAuthorise }
+
+  TTestAuthorise = class(TTestInstagramBase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Authorise;
+    procedure TestGetStories;
+  end;
+
 implementation
 
 uses
-  FileUtil;
+  FileUtil, eventlog;
 
 const
   s_SampleAccount='natgeo';
   s_SampleMedia='BqRpCX2gfsq';
   s_NotParsed='Not parsed';
-  s_NilJSON='JSON object not assigned!';
+  s_NilJSON='JSON data is nil!';
+  s_ConfTarget='Target';
+  s_Media='Media';
+  s_Username='Username';
+  s_Session='Session';
+  s_Password='Password';
+
+{ TTestInstagram }
 
 procedure TTestInstagram.TestGetParseJSONAccount;
 begin
-  AssertTrue(s_NotParsed, FInstagramParser.ParseGetAccount(s_SampleAccount));
+  AssertTrue(s_NotParsed, FInstagramParser.ParseGetAccount(TargetUsername));
   SaveJSONObject(FInstagramParser.jsonUser, '~account.json');
   AccountProperties;
 end;
 
-procedure TTestInstagram.AccountProperties;
+procedure TTestInstagram.TestGetParseJSONMedia;
+begin
+  AssertTrue(s_NotParsed, FInstagramParser.ParseGetPost(TargetMedia));
+  SaveJSONObject(FInstagramParser.jsonPost, '~media.json');
+  MediaProperties;
+end;
+
+{ TTestAuthorise }
+
+procedure TTestAuthorise.SetUp;
+var
+  AFileName: String;
+begin
+  inherited SetUp;
+  FInstagramParser.SessionUserName:=FConf.ReadString(s_Session, s_Username, '');
+  FInstagramParser.SessionPassword:=FConf.ReadString(s_Session, s_Password, '');
+  AssertTrue('Username or password not specified! See readme.md',
+    (FInstagramParser.SessionUserName<>EmptyStr) and (FInstagramParser.SessionPassword<>EmptyStr));
+  AFileName:='~cookies_'+FInstagramParser.SessionUserName+'.txt';
+  if FileExists(AFileName) then
+    FInstagramParser.UserSession.LoadFromFile(AFileName);
+  FInstagramParser.Login;  // No need authorise every test...
+  FInstagramParser.UserSession.SaveToFile('~cookies_'+FInstagramParser.SessionUserName+'.txt');
+  AssertTrue('Login is not succesful!', FInstagramParser.Logged);
+end;
+
+procedure TTestAuthorise.TearDown;
+begin
+  inherited TearDown;
+end;
+
+procedure TTestAuthorise.Authorise;
+begin
+  // Just only authorise
+end;
+
+procedure TTestAuthorise.TestGetStories;
+var
+  jsonStories: TJSONArray;
+begin
+  FInstagramParser.ParseGetAccount(TargetUsername);
+  jsonStories:=FInstagramParser.getStoriesForUser(FInstagramParser.UserID);
+  if Assigned(jsonStories) then
+  begin
+    SaveJSONObject(jsonStories, '~Stories.json');
+    jsonStories.Free;
+  end
+  else
+    Fail('json stories array is nil!');
+end;
+
+procedure TTestInstagramBase.AccountProperties;
 var
   AProperties: TStringList;
   i: Integer;
@@ -70,7 +147,7 @@ begin
   end;
 end;
 
-procedure TTestInstagram.MediaProperties;
+procedure TTestInstagramBase.MediaProperties;
 var
   AProperties: TStringList;
   i: Integer;
@@ -104,42 +181,45 @@ begin
   end;
 end;
 
-procedure TTestInstagram.TestGetParseJSONMedia;
-begin
-  AssertTrue(s_NotParsed, FInstagramParser.ParseGetPost(s_SampleMedia));
-  SaveJSONObject(FInstagramParser.jsonPost, '~media.json');
-  MediaProperties;
-end;
-
-procedure TTestInstagram.SaveJSONObject(AnObject: TJSONObject; const AFileName: String);
+procedure TTestInstagramBase.SaveJSONObject(AData: TJSONData; const AFileName: String);
 var
   AStrings: TStringList;
 begin
-  if not Assigned(AnObject) then
+  if not Assigned(AData) then
   begin
     Fail(s_NilJSON);
     Exit;
   end;
   AStrings:=TStringList.Create;
   try
-    AStrings.Text:=AnObject.FormatJSON;
+    AStrings.Text:=AData.FormatJSON;
     AStrings.SaveToFile(AFileName);
   finally
     AStrings.Free;
   end;
 end;
 
-procedure TTestInstagram.SetUp;
+procedure TTestInstagramBase.SetUp;
 begin
+  FConf:=TMemIniFile.Create('testinstagram.ini');
   FInstagramParser:=TInstagramParser.Create;
+  FInstagramParser.Logger:=TEventLog.Create(nil);
+  FInstagramParser.Logger.AppendContent:=True;
+  FInstagramParser.Logger.LogType:=ltFile;
+  FInstagramParser.Logger.Active:=True;
+  FTargetUserName:=FConf.ReadString(s_ConfTarget, s_Username, s_SampleAccount);
+  FTargetMediaShortCode:=FConf.ReadString(s_ConfTarget, s_Media, s_SampleMedia);
 end;
 
-procedure TTestInstagram.TearDown;
+procedure TTestInstagramBase.TearDown;
 begin
+  FreeAndNil(FConf);
+  FInstagramParser.Logger.Free;
+  FInstagramParser.Logger:=nil;
   FreeAndNil(FInstagramParser);
 end;
 
 initialization
-  RegisterTest('Account', TTestInstagram);
+  RegisterTests([TTestInstagram, TTestAuthorise]);
 end.
 
