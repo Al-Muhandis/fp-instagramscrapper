@@ -1,4 +1,4 @@
-To login in the TestAuthorise use [your] username and password from Instagram. Please enter these ini text:
+To login in the TestAuthorise use _[your]_ username and password from Instagram create `testinstagram.ini` file and copy the `ini` text below:
 ``` INI
 [Target]
 ;; It can specify other account Username or media post shortcode for testing
