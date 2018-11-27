@@ -3,7 +3,9 @@ To login in the TestAuthorise use _[your]_ username and password from Instagram 
 [Target]
 ;; It can specify other account Username or media post shortcode for testing
 Username=natgeo
+;; that is account url https://www.instagram.com/natgeo/
 Media=BqRpCX2gfsq
+;; that is media url  https://www.instagram.com/p/BqRpCX2gfsq/
 
 [Session]
 Username=YOUR_USERNAME
