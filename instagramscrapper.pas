@@ -230,6 +230,19 @@ const
   url_privateinfo_by_id='https://i.instagram.com/api/v1/users/{user_id}/info/';
 
 
+procedure StrToFile(const S, AFileName: String);
+var
+  AStrings: TStringList;
+begin
+  AStrings:=TStringList.Create;
+  AStrings.Text:=S;
+  try
+    AStrings.SaveToFile(AFileName);
+  finally
+    AStrings.Free;
+  end;
+end;
+
 function ExtractBetweenKeys(const ASource, Key1, Key2: String;
   var APos: Integer; out ADest: String): Boolean;
 var
@@ -495,7 +508,7 @@ begin
     if not Assigned(jsonResponse) then
       Exit;
     try
-      {$IFDEF DEBUG} StrToFile(jsonResponse.AsJSON, '~queryhash.json');  {$ENDIF}
+      {$IFDEF DEBUG}LogMesage(etDebug, 'Queryhash: '+jsonResponse.AsJSON);{$ENDIF}
       jsonArray:=jsonResponse.FindPath(ResPath) as TJSONArray;
       if Assigned(jsonArray) then
         Result:=jsonArray.Clone as TJSONArray;
@@ -1326,7 +1339,9 @@ begin
     jsonResponse:=HTTPGetJSON(getStoriesLink(variables));
     if not Assigned(jsonResponse) then
       Exit;
+    {$IFDEF DEBUG}StrToFile(jsonResponse.FormatJSON, '~getStoriesLink.json');{$ENDIF}
     reels_media:=jsonResponse.Objects['data'].Arrays['reels_media'];
+    {$IFDEF DEBUG}StrToFile(reels_media.FormatJSON, '~reels_media.json');{$ENDIF}
     if not Assigned(reels_media) then
       Exit;
     Result:=reels_media.Clone as TJSONArray;
