@@ -27,11 +27,11 @@ type
     FjsonMedias: TJSONObject;
     FjsonPost: TJSONObject;
     FLogged: Boolean;
+    FParseComments: Boolean;
     FPostCaption: String;
     FProfilePic: String;
     FResponse: String;
     FCommentCount: Integer;
-    FComments: TArrayOfString;
     FHomePage: String;
     FImages: TStrings;
     FLanguageCode: String;
@@ -58,6 +58,8 @@ type
     FrhxGis: String;
     Fcsrf_token: String;
     procedure AddMediaUrl(ANode: TJSONObject);
+    function ExtractCommentsFromMediaJSONData(AMediaJSON: TJSONObject;
+      out hasPrevious: Boolean; out AMaxID: Int64): Boolean;
     function ExtractSharedData: Boolean;
     procedure ExtractSharedData_Profile;
     procedure ExtractSharedData_Post;
@@ -150,7 +152,6 @@ type
     property Videos: TStrings read FVideos;
     property ThumbVideos: TStrings read FThumbVideos;
     property CommentCount: Integer read FCommentCount;
-    property Comments: TArrayOfString read FComments;
     property HomePage: String read FHomePage;
     property Likes: Integer read FLikes;
     property Url: String read FUrl write SetUrl;
@@ -159,6 +160,7 @@ type
     property LanguageCode: String read FLanguageCode;
     property Logger: TEventLog read FLogger write SetLogger;
     property CommentList: TJSONArray read FCommentList;
+    property ParseComments: Boolean read FParseComments write FParseComments;
     property MaxCommentID: Int64 read FMaxCommentID write SetMaxCommentID;
     property CommentHasPrev: Boolean read FCommentHasPrev write SetCommentHasPrev;
     property SessionUserName: String read FSessionUserName write SetSessionUserName;
@@ -564,10 +566,11 @@ var
   p: TJSONParser;
   d: TJSONData;
 begin
-  p:=TJSONParser.Create(JSONData, DefaultOptions);
   try
-    JSON_Data:=p.Parse as TJSONObject;
+    p:=TJSONParser.Create(JSONData, DefaultOptions);
     try
+      JSON_Data:=nil;
+      JSON_Data:=p.Parse as TJSONObject;
       FrhxGis:=FJSON_Data.Get('rhx_gis', EmptyStr);
       d:=FJSON_Data.FindPath('config.csrf_token');
       if Assigned(d) then
@@ -575,11 +578,12 @@ begin
       else
         Fcsrf_token:=EmptyStr;
       Result:=True;
-    except
-      Result:=False;
+    finally
+      p.Free;
     end;
-  finally
-    p.Free
+  except
+    LogMesage(etError, 'Failed to parse shared JSON data: "'+JSONData+'"');
+    Result:=False;
   end;
 end;
 
@@ -588,7 +592,8 @@ begin
   if Parse_SharedData(JSONData) then
     try
       jsonUser:=FJSON_Data.Objects['entry_data'].Arrays['ProfilePage'].Objects[0].Objects['graphql'].Objects['user'].Clone as TJSONObject;
-      Parse_jsonUser;
+      if not Parse_jsonUser then
+        LogMesage(etError, 'Failed to parse json user data: '+jsonUser.AsJSON);
     except
       on E: Exception do
       begin
@@ -604,7 +609,8 @@ begin
   if Parse_SharedData(JSONData) then
     try
       jsonPost:=FJSON_Data.Objects['entry_data'].Arrays['PostPage'].Objects[0].Objects['graphql'].Objects['shortcode_media'].Clone as TJSONObject;
-      Parse_jsonPost;
+      if not Parse_jsonPost then
+        LogMesage(etError, 'Failed to parse json media post data: '+jsonPost.AsJSON);
     except
       FjsonPost:=nil;
     end;
@@ -670,6 +676,9 @@ begin
     jsonUser:=FjsonPost.Objects['owner'].Clone as TJSONObject;
     Parse_jsonUser(False);
 
+    if FParseComments then
+      ExtractCommentsFromMediaJSONData(jsonPost, FCommentHasPrev, FMaxCommentID);
+
     Result:=True;
   except
     Result:=False
@@ -722,8 +731,7 @@ end;
 procedure TInstagramParser.SetjsonMedias(AValue: TJSONObject);
 begin
   if FjsonMedias=AValue then Exit;
-  if Assigned(FjsonMedias) then
-    FjsonMedias.Free;
+  FjsonMedias.Free;
   FjsonMedias:=AValue;
 end;
 
@@ -839,7 +847,6 @@ begin
     Sorted:=True;
     Duplicates:=dupIgnore;
   end;
-  SetLength(FComments, 0);
   FCommentList:=TJSONArray.Create;
   FSessionUserName:=EmptyStr;
   FSessionPassword:=EmptyStr;
@@ -857,6 +864,7 @@ begin
   Fcsrf_token:=EmptyStr;
 
   FLogged:=False;
+  FParseComments:=False;
 end;
 
 constructor TInstagramParser.Create(const AnUrl: String);
@@ -876,7 +884,6 @@ begin
   FUserSession.Free;
   FHTTPClient.Free;
   FCommentList.Free;
-  Finalize(FComments);
   FImages.Free;
   FVideos.Free;
   FThumbVideos.Free;
@@ -978,24 +985,28 @@ begin
 end;
 
 function TInstagramParser.GetCommentsFromUrl: Boolean;
+var
+  AParseComments: Boolean;
 begin
   Result:=False;
+  AParseComments:=FParseComments;
+  FParseComments:=True;
   if HttpGetText then
-    Result:=GetSrcsFromHTML
+    Result:=GetSrcsFromHTML;
+  FParseComments:=AParseComments;
 end;
 
 function TInstagramParser.getMediaCommentsByCode(ACount: Integer; AMaxID: Int64
   ): Boolean;
 var
-  Remain, NumberOfCommentsToRetreive, numberOfComments: Integer;
+  Remain, NumberOfCommentsToRetreive: Integer;
   AnIndex: Integer;
   HasPrevious: Boolean;
   CommentsUrl: String;
-  jsonResponse: TJSONObject;
-  nodes: TJSONArray;
-  jsonEnum: TJSONEnum;
+  jsonResponse, AjsonPost: TJSONObject;
 begin
   Result:=False;
+  FCommentCount:=0;
   FCommentList.Clear;
   Remain := ACount;
   AnIndex := 0;
@@ -1016,26 +1027,18 @@ begin
     CommentsUrl := getCommentsBeforeCommentIdByCode(NumberOfCommentsToRetreive, AMaxID);
     generateHeaders(UserSession);
     jsonResponse:=HTTPGetJSON(CommentsUrl);
-{          $cookies = HTTP parseCookies($response->headers['Set-Cookie']);
-    $this->userSession['csrftoken'] = $cookies['csrftoken'];   }
-    if Assigned(jsonResponse) then
-      try
-        FCommentCount:=jsonResponse.FindPath('data.shortcode_media.edge_media_to_comment.count').AsInteger;
-        nodes:=jsonResponse.FindPath('data.shortcode_media.edge_media_to_comment.edges') as TJSONArray;
-        for jsonEnum in nodes do
-          FCommentList.Add(jsonEnum.Value.Clone);
-        hasPrevious:=
-          jsonResponse.FindPath('data.shortcode_media.edge_media_to_comment.page_info.has_next_page').AsBoolean;
-        numberOfComments := jsonResponse.FindPath('data.shortcode_media.edge_media_to_comment.count').AsInteger;
-        Result:=True;
-        if ACount > numberOfComments then
-          ACount := numberOfComments;
-        if nodes.Count=0 then
-          Exit;
-        AMaxID := nodes[0].FindPath('node.id').AsInt64;
-      finally
-        jsonResponse.Free;
-      end;
+    try
+      if not Assigned(jsonResponse) then
+        Exit(False);
+      AjsonPost:=jsonResponse.FindPath('data.shortcode_media') as TJSONObject;
+      if not Assigned(AjsonPost) then
+        Exit(False);
+      ExtractCommentsFromMediaJSONData(AjsonPost, HasPrevious, AMaxID);
+      if ACount > FCommentCount then
+        ACount := FCommentCount;
+    finally
+      jsonResponse.Free;
+    end;
   end;
   FMaxCommentID:=AMaxID;
   FCommentHasPrev:=HasPrevious;
@@ -1155,6 +1158,31 @@ begin
   end
   else
     FImages.AddObject(ANode.Strings['display_'+Adrs], ANode);
+end;
+
+function TInstagramParser.ExtractCommentsFromMediaJSONData(
+  AMediaJSON: TJSONObject; out hasPrevious: Boolean; out AMaxID: Int64
+  ): Boolean;
+var
+  nodes: TJSONArray;
+  jsonEnum: TJSONEnum;
+begin
+  Result:=False;
+  try
+    FCommentCount:=AMediaJSON.FindPath('edge_media_to_comment.count').AsInteger;
+    nodes:=AMediaJSON.FindPath('edge_media_to_comment.edges') as TJSONArray;
+    for jsonEnum in nodes do
+      FCommentList.Add(jsonEnum.Value.Clone);
+    hasPrevious:=
+      AMediaJSON.FindPath('edge_media_to_comment.page_info.has_next_page').AsBoolean;
+    if nodes.Count=0 then
+      Exit(True);
+    AMaxID := nodes[0].FindPath('node.id').AsInt64;
+    Result:=True;
+  except
+    on E: Exception do
+      LogMesage(etError, 'Failed parse comments: '+AMediaJSON.AsJSON);
+  end;
 end;
 
 function TInstagramParser.ExtractSharedData: Boolean;

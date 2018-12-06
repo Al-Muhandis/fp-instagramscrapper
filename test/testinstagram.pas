@@ -5,7 +5,7 @@ unit testinstagram;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testutils, testregistry, InstagramScrapper, fpjson, IniFiles;
+  Classes, SysUtils, fpcunit, testregistry, InstagramScrapper, fpjson, IniFiles;
 
 type
 
@@ -32,6 +32,7 @@ type
   published
     procedure TestGetParseJSONAccount;
     procedure TestGetParseJSONMedia;
+    procedure TestGetParseMultiple;
   end;
 
   { TTestAuthorise }
@@ -72,9 +73,17 @@ end;
 
 procedure TTestInstagram.TestGetParseJSONMedia;
 begin
+  FInstagramParser.ParseComments:=True;
   AssertTrue(s_NotParsed, FInstagramParser.ParseGetPost(TargetMedia));
   SaveJSONObject(FInstagramParser.jsonPost, '~media.json');
   MediaProperties;
+end;
+
+procedure TTestInstagram.TestGetParseMultiple;
+begin
+  TestGetParseJSONAccount;
+  Sleep(300);
+  TestGetParseJSONMedia;
 end;
 
 { TTestAuthorise }
@@ -94,6 +103,7 @@ begin
   FInstagramParser.Login;  // No need authorise every test...
   FInstagramParser.UserSession.SaveToFile('~cookies_'+FInstagramParser.SessionUserName+'.txt');
   AssertTrue('Login is not succesful!', FInstagramParser.Logged);
+  Sleep(1000); // to avoid ban from Instagram
 end;
 
 procedure TTestAuthorise.TearDown;
@@ -176,6 +186,7 @@ begin
     AProperties.SaveToFile('~MediaProperties.txt');
     CheckNotEquals(FInstagramParser.Images.Count+FInstagramParser.Videos.Count, 0,
       'Empty media content');
+    SaveJSONObject(FInstagramParser.CommentList, '~comments.json');
   finally
     AProperties.Free;
   end;
@@ -209,6 +220,7 @@ begin
   FInstagramParser.Logger.Active:=True;
   FTargetUserName:=FConf.ReadString(s_ConfTarget, s_Username, s_SampleAccount);
   FTargetMediaShortCode:=FConf.ReadString(s_ConfTarget, s_Media, s_SampleMedia);
+  Sleep(200); // to avoid ban from Instagram
 end;
 
 procedure TTestInstagramBase.TearDown;
