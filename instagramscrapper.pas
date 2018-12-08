@@ -643,6 +643,9 @@ begin
       begin
         FMaxID:=0;
         FEndCursor:=GetEndCursor(jo.Objects['page_info']);
+        FVideos.Clear;
+        FThumbVideos.Clear;
+        FImages.Clear;
         for jsonEnum in jo.Arrays['edges'] do
           AddMediaUrl((jsonEnum.Value as TJSONObject).Objects['node']);
       end;
@@ -676,6 +679,7 @@ begin
     jsonUser:=FjsonPost.Objects['owner'].Clone as TJSONObject;
     Parse_jsonUser(False);
 
+    FCommentList.Clear;
     if FParseComments then
       ExtractCommentsFromMediaJSONData(jsonPost, FCommentHasPrev, FMaxCommentID);
 
