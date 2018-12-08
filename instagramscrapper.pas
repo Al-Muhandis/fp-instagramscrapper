@@ -135,7 +135,7 @@ type
     function LoginNGetStories(reel_ids: TJSONArray = nil): TJSONArray;
     function LoginNGetHLStories(AUserID: Int64 = 0): Tjson_HLStories;
     function LoginNGetMediaCommentsByCode(ACount: Integer = 10; AMaxID: Int64 = 0): Boolean;
-    function PrivateInfoByID(AccountID: Int64): Boolean;
+//    function PrivateInfoByID(AccountID: Int64): Boolean; No longer available!
     procedure SetUrlFromProfile(const Username: String);
     class function ThumbUrlFromMedias(ANode: TJSONObject): String;
     function UrlFromUsername(const AUsername: String = ''): String;
@@ -229,7 +229,7 @@ const
   QryHash_HLStoriesIDs = '7c16654f22c819fb63d1183034a5162f';
   QryHash_HLStories1 = '45246d3fe16ccc6577e0bd297a5db1ab';
 
-  url_privateinfo_by_id='https://i.instagram.com/api/v1/users/{user_id}/info/';
+//  url_privateinfo_by_id='https://i.instagram.com/api/v1/users/{user_id}/info/'; No longer available!
 
 
 procedure StrToFile(const S, AFileName: String);
@@ -1251,7 +1251,7 @@ begin
     end;
   except
     on E: Exception do
-      LogMesage(etError, 'Error while GET ('+AnUrl+') request: '+E.Message);
+      LogMesage(etError, 'Error while GET ('+AnUrl+') request: '+E.Message+'. HTTPCode: '+IntToStr(FHTTPCode));
   end;
   Result:=FHTTPCode=200;
 end;
@@ -1469,16 +1469,16 @@ begin
   if CheckLogin() then
     Result:=getMediaCommentsByCode(ACount, AMaxID);
 end;
-
+{ No longer available! You can get username by request data from earlier media post, for example
 function TInstagramParser.PrivateInfoByID(AccountID: Int64): Boolean;
 var
   jsonResponce: TJSONObject;
   AnUrl: String;
 begin
   try
-    Result:=False;
-    AnUrl:=ReplaceStr(url_privateinfo_by_id, '{user_id}', IntToStr(AccountID));
-    jsonResponce:=HTTPGetJSON(AnUrl) as TJSONObject;
+    Result:=False;          }
+    //AnUrl:=ReplaceStr(url_privateinfo_by_id, '{user_id}', IntToStr(AccountID));
+{    jsonResponce:=HTTPGetJSON(AnUrl) as TJSONObject;
     try
       jsonUser:=jsonResponce.Objects['user'].Clone as TJSONObject;
       if Assigned(jsonUser) then
@@ -1492,7 +1492,7 @@ begin
     Result:=False;
   end;
 end;
-
+}
 procedure TInstagramParser.SetUrlFromProfile(const Username: String);
 begin
   FUsername:=Username;
