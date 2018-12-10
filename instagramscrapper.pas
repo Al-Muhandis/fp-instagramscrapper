@@ -1253,7 +1253,7 @@ begin
     on E: Exception do
     begin
       LogMesage(etError, 'Error while GET ('+AnUrl+') request: '+E.Message+'. HTTPCode: '+IntToStr(FHTTPCode));
-      Result:=False;
+      Exit(False);
     end;
   end;
   Result:=FHTTPCode=200;
