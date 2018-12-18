@@ -63,6 +63,10 @@ type
     function ExtractSharedData: Boolean;
     procedure ExtractSharedData_Profile;
     procedure ExtractSharedData_Post;
+    function GetHTTPProxyHost: String;
+    function GetHTTPProxyPassword: String;
+    function GetHTTPProxyPort: Word;
+    function GetHTTPProxyUsername: String;
     function IsLoggenIn(ASession: TStrings = nil): Boolean;
     procedure generateHeaders(ASession: TStrings; gisToken: String = '');
     class function getAccountJsonLink(const AnUserName: String): String;
@@ -90,6 +94,10 @@ type
     procedure SetCommentHasPrev(AValue: Boolean);
     procedure SetEndCursor(AValue: String);
     procedure SetHTTPCode(AValue: Integer);
+    procedure SetHTTPProxyHost(AValue: String);
+    procedure SetHTTPProxyPassword(AValue: String);
+    procedure SetHTTPProxyUsername(AValue: String);
+    procedure SetHTTPProxyPort(AValue: Word);
     procedure SetjsonMedias(AValue: TJSONObject);
     procedure SetjsonPost(AValue: TJSONObject);
     procedure SetJSON_Data(AValue: TJSONObject);
@@ -177,6 +185,11 @@ type
     property MaxID: Int64 read FMaxID write SetMaxID;
     property Logged: Boolean read FLogged write SetLogged;
     property HTTPCode: Integer read FHTTPCode write SetHTTPCode;
+    { TODO : Preparation for HTTP proxy support. Developed in the trunk version of FPC }
+    property HTTPProxyHost: String read GetHTTPProxyHost write SetHTTPProxyHost;
+    property HTTPProxyUsername: String read GetHTTPProxyUsername write SetHTTPProxyUsername;
+    property HTTPProxyPassword: String read GetHTTPProxyPassword write SetHTTPProxyPassword;
+    property HTTPProxyPort: Word read GetHTTPProxyPort write SetHTTPProxyPort;
   end;
 
 const
@@ -185,9 +198,6 @@ const
 
 function ExtractBetweenKeys(const ASource, Key1, Key2: String;
   var APos: Integer; out ADest: String): Boolean;
-function HttpGetText(const URL: string; out Response: String;
-  Logger: TEventLog = nil): Boolean;
-function HTTPPostData(const URL, URLData: string; out Response: String): Boolean;
 function JSONStringToString(const S: TJSONStringType): UnicodeString;
 function GetThumbnailUrl(ADim: Integer; const APhotoUrl: String): String; deprecated;
 function IsValidString(const S: String;
@@ -265,50 +275,7 @@ begin
   end
 end;
 
-function HttpGetText(const URL: string; out Response: String;
-  Logger: TEventLog = nil): Boolean;
-var
-  HTTP: TFPHTTPClient;
-  StatusCode: Integer;
-
-begin
-  HTTP := TFPHTTPClient.Create(nil);
-  try
-    HTTP.AllowRedirect:=True;
-    try
-      Response:=HTTP.Get(URL);
-    except
-      on E: Exception do
-        if Assigned(Logger) then
-          Logger.Error('Error while GET request: '+E.Message);
-    end;
-    StatusCode:=HTTP.ResponseStatusCode;
-    Result:=StatusCode=200;
-  finally
-    HTTP.Free;
-  end;
-end;
-
-function HTTPPostData(const URL, URLData: string; out Response: String): Boolean;
-var
-  HTTP: TFPHTTPClient;
-begin
-  HTTP:=TFPHTTPClient.Create(nil);
-  try
-    HTTP.RequestBody:=TStringStream.Create(URLData);
-    try
-      HTTP.AddHeader('Content-Type','application/json');
-      Response:=HTTP.Post(URL);
-    finally
-      HTTP.RequestBody.Free;
-    end;
-    Result:=True;
-  except
-    Result:=False;
-  end;
-  HTTP.Free;
-end;
-  // Own JSONStringToString... Bug with emoji in function in fcl-json library at least in stable version of fpc
+// Own JSONStringToString... Bug with emoji in function in fcl-json library at least in stable version of fpc
 function JSONStringToString(const S: TJSONStringType): UnicodeString;
 
 Var
@@ -730,6 +697,26 @@ procedure TInstagramParser.SetHTTPCode(AValue: Integer);
 begin
   if FHTTPCode=AValue then Exit;
   FHTTPCode:=AValue;
+end;
+
+procedure TInstagramParser.SetHTTPProxyHost(AValue: String);
+begin
+  FHTTPClient.Proxy.Host:=AValue;
+end;
+
+procedure TInstagramParser.SetHTTPProxyPassword(AValue: String);
+begin
+  FHTTPClient.Proxy.Password:=AValue;
+end;
+
+procedure TInstagramParser.SetHTTPProxyUsername(AValue: String);
+begin
+  FHTTPClient.Proxy.UserName:=AValue;
+end;
+
+procedure TInstagramParser.SetHTTPProxyPort(AValue: Word);
+begin
+  FHTTPClient.Proxy.Port:=AValue;
 end;
 
 procedure TInstagramParser.SetjsonMedias(AValue: TJSONObject);
@@ -1218,6 +1205,26 @@ begin
   APos:=1;
   if ExtractBetweenKeys(FResponse, 'window._sharedData = ', ';</script>', APos, js) then
     Parse_SharedData_Post(js);
+end;
+
+function TInstagramParser.GetHTTPProxyHost: String;
+begin
+  Result:=FHTTPClient.Proxy.Host;
+end;
+
+function TInstagramParser.GetHTTPProxyPassword: String;
+begin
+  Result:=FHTTPClient.Proxy.Password;
+end;
+
+function TInstagramParser.GetHTTPProxyPort: Word;
+begin
+  Result:=FHTTPClient.Proxy.Port;
+end;
+
+function TInstagramParser.GetHTTPProxyUsername: String;
+begin
+  Result:=FHTTPClient.Proxy.UserName;
 end;
 
 function TInstagramParser.IsLoggenIn(ASession: TStrings): Boolean;

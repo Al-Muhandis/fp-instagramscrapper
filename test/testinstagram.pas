@@ -28,11 +28,20 @@ type
     property TargetMedia: String read FTargetMediaShortCode;
   end;
 
+  { TTestInstagram }
+
   TTestInstagram=class(TTestInstagramBase)
   published
     procedure TestGetParseJSONAccount;
     procedure TestGetParseJSONMedia;
     procedure TestGetParseMultiple;
+  end;
+
+  { TTestInstagramWithProxy }
+
+  TTestInstagramWithProxy=class(TTestInstagram)
+  protected
+    procedure SetUp; override;
   end;
 
   { TTestAuthorise }
@@ -61,6 +70,20 @@ const
   s_Username='Username';
   s_Session='Session';
   s_Password='Password';
+  s_Proxy='Proxy';
+  s_Host='Host';
+  s_Port='Port';
+
+{ TTestInstagramWithProxy }
+
+procedure TTestInstagramWithProxy.SetUp;
+begin
+  inherited SetUp;
+  FInstagramParser.HTTPProxyHost:=    FConf.ReadString(s_Proxy,  s_Host,     EmptyStr);
+  FInstagramParser.HTTPProxyUsername:=FConf.ReadString(s_Proxy,  s_Username, EmptyStr);
+  FInstagramParser.HTTPProxyPassword:=FConf.ReadString(s_Proxy,  s_Password, EmptyStr);
+  FInstagramParser.HTTPProxyPort:=    FConf.ReadInteger(s_Proxy, s_Port,     0);
+end;
 
 { TTestInstagram }
 
