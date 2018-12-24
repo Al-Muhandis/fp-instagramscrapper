@@ -58,7 +58,7 @@ type
 implementation
 
 uses
-  FileUtil, eventlog;
+  FileUtil, eventlog, fphttpclientbroker;
 
 const
   s_SampleAccount='natgeo';
@@ -79,10 +79,10 @@ const
 procedure TTestInstagramWithProxy.SetUp;
 begin
   inherited SetUp;
-  FInstagramParser.HTTPProxyHost:=    FConf.ReadString(s_Proxy,  s_Host,     EmptyStr);
-  FInstagramParser.HTTPProxyUsername:=FConf.ReadString(s_Proxy,  s_Username, EmptyStr);
-  FInstagramParser.HTTPProxyPassword:=FConf.ReadString(s_Proxy,  s_Password, EmptyStr);
-  FInstagramParser.HTTPProxyPort:=    FConf.ReadInteger(s_Proxy, s_Port,     0);
+  FInstagramParser.HTTPClient.HTTPProxyHost:=    FConf.ReadString(s_Proxy,  s_Host,     EmptyStr);
+  FInstagramParser.HTTPClient.HTTPProxyUsername:=FConf.ReadString(s_Proxy,  s_Username, EmptyStr);
+  FInstagramParser.HTTPClient.HTTPProxyPassword:=FConf.ReadString(s_Proxy,  s_Password, EmptyStr);
+  FInstagramParser.HTTPClient.HTTPProxyPort:=    FConf.ReadInteger(s_Proxy, s_Port,     0);
 end;
 
 { TTestInstagram }
@@ -255,6 +255,7 @@ begin
 end;
 
 initialization
-  RegisterTests([TTestInstagram, TTestAuthorise]);
+  TbFPHTTPClient.RegisterClientClass; // Native FCL HTTP Client
+  RegisterTests([TTestInstagram, TTestInstagramWithProxy, TTestAuthorise]);
 end.
 

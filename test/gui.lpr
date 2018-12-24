@@ -3,7 +3,8 @@ program gui;
 {$mode objfpc}{$H+}
 
 uses
-  Interfaces, Forms, GuiTestRunner, testinstagram;
+  Interfaces, Forms, GuiTestRunner, testinstagram, testwithproxy,
+  InstagramScrapper;
 
 {$R *.res}
 

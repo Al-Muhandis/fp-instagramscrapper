@@ -5,7 +5,7 @@ unit InstagramScrapper;
 interface
 
 uses
-  Classes, SysUtils, fpjson, eventlog, fphttpclient;
+  Classes, SysUtils, fpjson, eventlog, basehttpclient;
 
 type
   TArrayOfString = array of String;
@@ -50,7 +50,7 @@ type
     FVideos: TStrings;
     FThumbVideos: TStrings;
     FCommentList: TJSONArray;
-    FHTTPClient: TFPHTTPClient;
+    FHTTPClient: TBaseHTTPClient;
     FJSON_Data: TJSONObject;
     FjsonUser: TJSONObject;
     FEndCursor: String;
@@ -72,8 +72,8 @@ type
     class function getAccountJsonLink(const AnUserName: String): String;
     function getEdgesFromGraphQueryHash(const AHash: String; variables: TJSONObject;
       const ResPath: String): TJSONArray;
-    class function getGraphQlUrl(const QueryId: String; const Parameters: String): String;
-    class function getGraphQlQueryHashUrl(const QueryHash: String; const Parameters: String): String;
+    function getGraphQlUrl(const QueryId: String; const Parameters: String): String;
+    function getGraphQlQueryHashUrl(const QueryHash: String; const Parameters: String): String;
     class function getMediaLink(const ACode: String): String;
     class function GetEndCursor(PageInfo: TJSONObject): String;
     function getUserStoriesLink: String;
@@ -82,7 +82,7 @@ type
     function getHighlightStoriesLink1(const variables: TJSONObject): String;
     class function getAccountMediasJsonLink(AUserID: Int64; const After: String): String;
     procedure LogMesage(EventType: TEventType; const Msg: String);
-    procedure ParseCookies(AHTTPClient: TFPHTTPClient; ASession: TStrings);
+    procedure ParseCookies(ASession: TStrings);
     procedure ParseSetCookie(AHeaders: TStrings; ASession: TStrings; const AName: String);
     function Parse_SharedData(const JSONData: String): Boolean;
     procedure Parse_SharedData_Profile(const JSONData: String);
@@ -94,10 +94,6 @@ type
     procedure SetCommentHasPrev(AValue: Boolean);
     procedure SetEndCursor(AValue: String);
     procedure SetHTTPCode(AValue: Integer);
-    procedure SetHTTPProxyHost(AValue: String);
-    procedure SetHTTPProxyPassword(AValue: String);
-    procedure SetHTTPProxyUsername(AValue: String);
-    procedure SetHTTPProxyPort(AValue: Word);
     procedure SetjsonMedias(AValue: TJSONObject);
     procedure SetjsonPost(AValue: TJSONObject);
     procedure SetJSON_Data(AValue: TJSONObject);
@@ -184,12 +180,8 @@ type
     property EndCursor: String read FEndCursor write SetEndCursor;
     property MaxID: Int64 read FMaxID write SetMaxID;
     property Logged: Boolean read FLogged write SetLogged;
-    property HTTPCode: Integer read FHTTPCode write SetHTTPCode;
-    { TODO : Preparation for HTTP proxy support. Developed in the trunk version of FPC }
-    property HTTPProxyHost: String read GetHTTPProxyHost write SetHTTPProxyHost;
-    property HTTPProxyUsername: String read GetHTTPProxyUsername write SetHTTPProxyUsername;
-    property HTTPProxyPassword: String read GetHTTPProxyPassword write SetHTTPProxyPassword;
-    property HTTPProxyPort: Word read GetHTTPProxyPort write SetHTTPProxyPort;
+    property HTTPCode: Integer read FHTTPCode write SetHTTPCode; deprecated; // Use HTTPClient.ResponseStatusCode instead
+    property HTTPClient: TBaseHTTPClient read FHTTPClient;
   end;
 
 const
@@ -410,20 +402,20 @@ begin
   Result:=ReplaceStr(ACCOUNT_JSON_INFO, '{username}', AnUserName);
 end;
 
-class function TInstagramParser.getGraphQlUrl(const QueryId: String;
+function TInstagramParser.getGraphQlUrl(const QueryId: String;
   const Parameters: String): String;
 begin
   Result := ReplaceStr(GRAPH_QL_QUERY_URL, '{{queryId}}', QueryId);
   if Parameters<>EmptyStr then
-    Result+='&' + 'variables='+EncodeURLElement(Parameters);
+    Result+='&' + 'variables='+FHTTPClient.EncodeUrlElement(Parameters);
 end;
 
-class function TInstagramParser.getGraphQlQueryHashUrl(const QueryHash: String;
+function TInstagramParser.getGraphQlQueryHashUrl(const QueryHash: String;
   const Parameters: String): String;
 begin
   Result := ReplaceStr(GRAPH_QL_QUERY_URL1, '{{queryHash}}', QueryHash);
   if Parameters<>EmptyStr then
-    Result+='&' + 'variables='+EncodeURLElement(Parameters);
+    Result+='&' + 'variables='+FHTTPClient.EncodeUrlElement(Parameters);
 end;
 
 class function TInstagramParser.getMediaLink(const ACode: String): String;
@@ -501,16 +493,16 @@ begin
     FLogger.Log(EventType, Msg);
 end;
 
-procedure TInstagramParser.ParseCookies(AHTTPClient: TFPHTTPClient; ASession: TStrings);
+procedure TInstagramParser.ParseCookies(ASession: TStrings);
 begin
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'csrftoken');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'mid');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'sessionid');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'ds_user_id');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'rur');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'mcd');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'target');
-  ParseSetCookie(AHTTPClient.ResponseHeaders, ASession, 'urlgen');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'csrftoken');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'mid');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'sessionid');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'ds_user_id');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'rur');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'mcd');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'target');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'urlgen');
 end;
 
 procedure TInstagramParser.ParseSetCookie(AHeaders: TStrings;
@@ -699,26 +691,6 @@ begin
   FHTTPCode:=AValue;
 end;
 
-procedure TInstagramParser.SetHTTPProxyHost(AValue: String);
-begin
-  FHTTPClient.Proxy.Host:=AValue;
-end;
-
-procedure TInstagramParser.SetHTTPProxyPassword(AValue: String);
-begin
-  FHTTPClient.Proxy.Password:=AValue;
-end;
-
-procedure TInstagramParser.SetHTTPProxyUsername(AValue: String);
-begin
-  FHTTPClient.Proxy.UserName:=AValue;
-end;
-
-procedure TInstagramParser.SetHTTPProxyPort(AValue: Word);
-begin
-  FHTTPClient.Proxy.Port:=AValue;
-end;
-
 procedure TInstagramParser.SetjsonMedias(AValue: TJSONObject);
 begin
   if FjsonMedias=AValue then Exit;
@@ -841,8 +813,9 @@ begin
   FCommentList:=TJSONArray.Create;
   FSessionUserName:=EmptyStr;
   FSessionPassword:=EmptyStr;
-  FHTTPClient := TFPHTTPClient.Create(nil);
-  FHTTPClient.AllowRedirect:=True;
+  FHTTPClient := TBaseHTTPClient.GetClientClass.Create(nil);
+  { TODO : REdirect property }
+//  FHTTPClient.AllowRedirect:=True;
 
   FUserSession := TStringList.Create;
 
@@ -1209,22 +1182,22 @@ end;
 
 function TInstagramParser.GetHTTPProxyHost: String;
 begin
-  Result:=FHTTPClient.Proxy.Host;
+  Result:=FHTTPClient.HTTPProxyHost;
 end;
 
 function TInstagramParser.GetHTTPProxyPassword: String;
 begin
-  Result:=FHTTPClient.Proxy.Password;
+  Result:=FHTTPClient.HTTPProxyPassword;
 end;
 
 function TInstagramParser.GetHTTPProxyPort: Word;
 begin
-  Result:=FHTTPClient.Proxy.Port;
+  Result:=FHTTPClient.HTTPProxyPort;
 end;
 
 function TInstagramParser.GetHTTPProxyUsername: String;
 begin
-  Result:=FHTTPClient.Proxy.UserName;
+  Result:=FHTTPClient.HTTPProxyUserName;
 end;
 
 function TInstagramParser.IsLoggenIn(ASession: TStrings): Boolean;
@@ -1233,7 +1206,7 @@ begin
     Exit(False);
   generateHeaders(ASession);
   HTTPGetText(BASE_URL+'/');
-  ParseCookies(FHTTPClient, ASession);
+  ParseCookies(ASession);
   if FHTTPClient.ResponseStatusCode <> 200 then
     Exit(False);
   if ASession.Values['ds_user_id']=EmptyStr then
@@ -1303,7 +1276,7 @@ begin
   begin
     HTTPGetText(BASE_URL+'/');
     ExtractSharedData;
-    ParseCookies(FHTTPClient, FUserSession);
+    ParseCookies(FUserSession);
     if FUserSession.Values['csrf_token']=EmptyStr then
       FUserSession.Values['csrf_token']:=Fcsrf_token
     else
@@ -1331,7 +1304,7 @@ begin
         Exit(False)
       else
         Exit(False);
-    ParseCookies(FHTTPClient, FUserSession);
+    ParseCookies(FUserSession);
   end;
   Result:=True;
   FLogged:=True;

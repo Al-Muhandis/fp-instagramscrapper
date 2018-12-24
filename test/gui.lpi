@@ -108,7 +108,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="2">
+    <Units Count="4">
       <Unit0>
         <Filename Value="gui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -117,6 +117,15 @@
         <Filename Value="testinstagram.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit1>
+      <Unit2>
+        <Filename Value="testwithproxy.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="..\instagramscrapper.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="InstagramScrapper"/>
+      </Unit3>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
