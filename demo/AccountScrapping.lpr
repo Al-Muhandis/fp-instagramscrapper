@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, InstagramScrapper, eventlog, SysUtils;
+  Classes, InstagramScrapper, eventlog, SysUtils, fphttpclientbroker;
 
 var
   Instagram: TInstagramParser;
@@ -14,6 +14,7 @@ var
   ALogger: TEventLog;
 
 begin
+  TbFPHTTPClient.RegisterClientClass; // You must register any http client class (now available only fphttpclient)
   ALogger:=TEventLog.Create(nil);
   ALogger.FileName:=ChangeFileExt(ApplicationName, '.log');
   ALogger.LogType:=ltFile;
@@ -28,7 +29,7 @@ begin
         Writeln('Follows: '+IntToStr(Instagram.Follows)+', FolowedBy: '+IntToStr(Instagram.FollowedBy));
         Write('Are You want to continue? (Y/N): ');
         Readln(S);
-      until lowercase(S)='y';
+      until lowercase(S)<>'y';
     finally
       Instagram.Free;
     end;
