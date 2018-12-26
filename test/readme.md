@@ -10,4 +10,11 @@ Media=BqRpCX2gfsq
 [Session]
 Username=YOUR_USERNAME
 Password=YOUR_PASSWORD
+
+;; HTTP proxies are currently supported only with synapse components
+[Proxy]
+Host=
+Port=
+Username=
+Password=
 ```

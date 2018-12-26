@@ -701,8 +701,7 @@ end;
 procedure TInstagramParser.SetjsonPost(AValue: TJSONObject);
 begin
   if FjsonPost=AValue then Exit;
-  if Assigned(FjsonPost) then
-    FjsonPost.Free;
+  FjsonPost.Free;
   FjsonPost:=AValue;
 end;
 
@@ -717,8 +716,7 @@ end;
 procedure TInstagramParser.SetjsonUser(AValue: TJSONObject);
 begin
   if FjsonUser=AValue then Exit;
-  if Assigned(FjsonUser) then
-    FjsonUser.Free;
+  FjsonUser.Free;
   FjsonUser:=AValue;
 end;
 
