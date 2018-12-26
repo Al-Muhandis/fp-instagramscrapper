@@ -18,5 +18,6 @@ uses
 initialization
   TbFPHTTPClient.RegisterClientClass; // Native FCL HTTP Client    
 ```
+In case of using the _synapse_ network components You should not forget to add in the dependency the `laz_synapse` package and `ssl_openssl` unit from the same package.
 
 Suggestions and improvements are welcome.
