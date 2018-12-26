@@ -16,15 +16,26 @@ type
     procedure SetUp; override;
   end;
 
+  { TTestSynapseWithProxy }
+
+  TTestSynapseWithProxy= class(TTestInstagramWithProxy)
+  protected
+    procedure SetUp; override;
+  end;
+
 implementation
 
 uses
   FileUtil, synapsehttpclientbroker;
 
-const
-  s_Proxy='Proxy';
-  s_Host='Host';
-  s_Port='Port';
+{ TTestSynapseWithProxy }
+
+procedure TTestSynapseWithProxy.SetUp;
+begin
+  TSynapseHTTPClient.UnregisterClientClass;
+  TSynapseHTTPClient.RegisterClientClass; // Register synapse HTTP client
+  inherited SetUp;
+end;
 
 { TTestSynapseInstagram }
 
@@ -36,7 +47,7 @@ begin
 end;
 
 initialization
-  RegisterTests([TTestSynapseInstagram]);
+  RegisterTests([TTestSynapseInstagram, TTestSynapseWithProxy]);
 
 end.
 
