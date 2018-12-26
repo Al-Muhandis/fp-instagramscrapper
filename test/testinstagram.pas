@@ -37,13 +37,6 @@ type
     procedure TestGetParseMultiple;
   end;
 
-  { TTestInstagramWithProxy }
-
-  TTestInstagramWithProxy=class(TTestInstagram)
-  protected
-    procedure SetUp; override;
-  end;
-
   { TTestAuthorise }
 
   TTestAuthorise = class(TTestInstagramBase)
@@ -70,20 +63,6 @@ const
   s_Username='Username';
   s_Session='Session';
   s_Password='Password';
-  s_Proxy='Proxy';
-  s_Host='Host';
-  s_Port='Port';
-
-{ TTestInstagramWithProxy }
-
-procedure TTestInstagramWithProxy.SetUp;
-begin
-  inherited SetUp;
-  FInstagramParser.HTTPClient.HTTPProxyHost:=    FConf.ReadString(s_Proxy,  s_Host,     EmptyStr);
-  FInstagramParser.HTTPClient.HTTPProxyUsername:=FConf.ReadString(s_Proxy,  s_Username, EmptyStr);
-  FInstagramParser.HTTPClient.HTTPProxyPassword:=FConf.ReadString(s_Proxy,  s_Password, EmptyStr);
-  FInstagramParser.HTTPClient.HTTPProxyPort:=    FConf.ReadInteger(s_Proxy, s_Port,     0);
-end;
 
 { TTestInstagram }
 
@@ -256,6 +235,7 @@ end;
 
 initialization
   TbFPHTTPClient.RegisterClientClass; // Native FCL HTTP Client
-  RegisterTests([TTestInstagram, TTestInstagramWithProxy, TTestAuthorise]);
+  RegisterTests([TTestInstagram, TTestAuthorise]);
+
 end.
 

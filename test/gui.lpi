@@ -22,7 +22,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value=".."/>
+            <OtherUnitFiles Value="..;C:\lazarus32\ccr\synapse\"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -66,7 +66,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value=".."/>
+            <OtherUnitFiles Value="..;C:\lazarus32\ccr\synapse\"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -97,16 +97,19 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <RequiredPackages Count="3">
+    <RequiredPackages Count="4">
       <Item1>
-        <PackageName Value="fpcunittestrunner"/>
+        <PackageName Value="laz_synapse"/>
       </Item1>
       <Item2>
-        <PackageName Value="LCL"/>
+        <PackageName Value="fpcunittestrunner"/>
       </Item2>
       <Item3>
-        <PackageName Value="FCL"/>
+        <PackageName Value="LCL"/>
       </Item3>
+      <Item4>
+        <PackageName Value="FCL"/>
+      </Item4>
     </RequiredPackages>
     <Units Count="4">
       <Unit0>
@@ -114,17 +117,17 @@
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="testinstagram.pas"/>
+        <Filename Value="testinstagram_synapse.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="testwithproxy.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit2>
-      <Unit3>
         <Filename Value="..\instagramscrapper.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="InstagramScrapper"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="C:\lazarus32\ccr\synapse\ssl_openssl.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit3>
     </Units>
   </ProjectOptions>
@@ -136,7 +139,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".."/>
+      <OtherUnitFiles Value="..;C:\lazarus32\ccr\synapse\"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>

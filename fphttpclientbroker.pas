@@ -23,6 +23,7 @@ type
     function GetRequestHeaders: TStrings; override;
     function GetResponseHeaders: TStrings; override;
     function GetResponseStatusCode: Integer; override;
+    function GetResponseStatusText: String; override;
     procedure SetCookies(AValue: TStrings); override;
     procedure SetHTTPProxyHost(AValue: String); override;
     procedure SetHTTPProxyPassword(AValue: String); override;
@@ -80,6 +81,11 @@ end;
 function TbFPHTTPClient.GetResponseStatusCode: Integer;
 begin
   Result:=FHTTPClient.ResponseStatusCode;
+end;
+
+function TbFPHTTPClient.GetResponseStatusText: String;
+begin
+  Result:=FHTTPClient.ResponseStatusText;
 end;
 
 procedure TbFPHTTPClient.SetCookies(AValue: TStrings);

@@ -25,6 +25,7 @@ type
     function GetRequestHeaders: TStrings; virtual; abstract;
     function GetResponseHeaders: TStrings; virtual; abstract;
     function GetResponseStatusCode: Integer; virtual; abstract;
+    function GetResponseStatusText: String; virtual; abstract;
     procedure SetCookies(AValue: TStrings); virtual; abstract;
     procedure SetHTTPProxyHost(AValue: String); virtual; abstract;
     procedure SetHTTPProxyPassword(AValue: String); virtual; abstract;
@@ -43,6 +44,7 @@ type
     property RequestHeaders: TStrings read GetRequestHeaders write SetRequestHeaders;
     property ResponseHeaders: TStrings read GetResponseHeaders;
     property ResponseStatusCode: Integer read GetResponseStatusCode;
+    property ResponseStatusText: String read GetResponseStatusText;
     property HTTPProxyHost: String read GetHTTPProxyHost write SetHTTPProxyHost;
     property HTTPProxyPort: Word read GetHTTPProxyPort write SetHTTPProxyPort;
     property HTTPProxyUsername: String read GetHTTPProxyUsername write SetHTTPProxyUsername;
