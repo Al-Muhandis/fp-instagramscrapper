@@ -62,7 +62,7 @@ begin
   FRequestHeaders:=TStringList.Create;
   FRequestHeaders.NameValueSeparator:=':';
   FResponseHeaders:=TStringList.Create;
-  FResponseHeaders.NameValueSeparator:=';';
+  FResponseHeaders.NameValueSeparator:=':';
 end;
 
 destructor TSynapseHTTPClient.Destroy;
@@ -83,8 +83,8 @@ function TSynapseHTTPClient.FormPost(const URL: string; FormData: TStrings
 var
   Response: TStringList;
 begin
-  FHTTPClient.Clear;
-  FHTTPClient.Headers.Assign(FRequestHeaders);
+  FHTTPClient.Document.Clear;
+  FHTTPClient.Headers.AddStrings(FRequestHeaders, True);
   FResponseHeaders.Clear;
   FormData.SaveToStream(FHTTPClient.Document);
 //    WriteStrToStream(FHTTPClient.Document, FormData.Text);
@@ -93,7 +93,9 @@ begin
     Response:=TStringList.Create;
     try
       Response.LoadFromStream(FHTTPClient.Document);
-      FResponseHeaders.Assign(FHTTPClient.Headers);
+      FResponseHeaders.AddStrings(FHTTPClient.Headers, True);
+      Result:=Response.Text;
+      {$IFDEF DEBUG}FResponseHeaders.SaveToFile('~ResponseHeaders.txt');{$ENDIF}
     finally
       Response.Free;
     end
@@ -106,14 +108,17 @@ function TSynapseHTTPClient.Get(const AUrl: String): String;
 var
   Response: TStringList;
 begin
-  FHTTPClient.Clear;
-  FHTTPClient.Headers.Assign(FRequestHeaders);
+  FHTTPClient.Document.Clear;
+  FHTTPClient.Headers.AddStrings(FRequestHeaders, True);
+  FResponseHeaders.Clear;
   if FHTTPClient.HTTPMethod('GET', AUrl) then
   begin
     Response:=TStringList.Create;
     try
       Response.LoadFromStream(FHTTPClient.Document);
+      FResponseHeaders.AddStrings(FRequestHeaders, True);
       Result:=Response.Text;
+      {$IFDEF DEBUG}FResponseHeaders.SaveToFile('~ResponseHeaders.txt');{$ENDIF}
     finally
       Response.Free;
     end

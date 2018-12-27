@@ -236,6 +236,8 @@ end;
 procedure TTestInstagramBase.SetUp;
 begin
   FConf:=TMemIniFile.Create('testinstagram.ini');
+  TbFPHTTPClient.UnregisterClientClass; // The test can be run (theoretically) after test with synapse
+  TbFPHTTPClient.RegisterClientClass; // Native FCL HTTP Client
   FInstagramParser:=TInstagramParser.Create;
   FInstagramParser.Logger:=TEventLog.Create(nil);
   FInstagramParser.Logger.AppendContent:=True;
@@ -255,7 +257,6 @@ begin
 end;
 
 initialization
-  TbFPHTTPClient.RegisterClientClass; // Native FCL HTTP Client
   RegisterTests([TTestInstagram, TTestAuthorise]);
 
 end.

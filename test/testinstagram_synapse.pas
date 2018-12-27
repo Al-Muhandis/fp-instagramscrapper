@@ -23,10 +23,26 @@ type
     procedure SetUp; override;
   end;
 
+  { TTestSynapseAuthoruze }
+
+  TTestSynapseAuthoruze= class(TTestAuthorise)
+  protected
+    procedure SetUp; override;
+  end;
+
 implementation
 
 uses
   FileUtil, synapsehttpclientbroker;
+
+{ TTestSynapseAuthoruze }
+
+procedure TTestSynapseAuthoruze.SetUp;
+begin
+  TSynapseHTTPClient.UnregisterClientClass;
+  TSynapseHTTPClient.RegisterClientClass; // Register synapse HTTP client
+  inherited SetUp;
+end;
 
 { TTestSynapseWithProxy }
 
@@ -47,7 +63,7 @@ begin
 end;
 
 initialization
-  RegisterTests([TTestSynapseInstagram, TTestSynapseWithProxy]);
+  RegisterTests([TTestSynapseInstagram, TTestSynapseWithProxy, TTestSynapseAuthoruze]);
 
 end.
 
