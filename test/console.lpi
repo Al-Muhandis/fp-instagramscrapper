@@ -82,6 +82,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <CommandLineParams Value="--suite=TTestSynapseWithProxy -p"/>
       </local>
     </RunParams>
     <RequiredPackages Count="3">
@@ -95,7 +96,7 @@
         <PackageName Value="FCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="5">
+    <Units Count="6">
       <Unit0>
         <Filename Value="console.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -116,6 +117,10 @@
         <Filename Value="C:\lazarus32\ccr\synapse\ssl_openssl.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="testinstagram_fphttpclient.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

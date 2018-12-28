@@ -58,7 +58,7 @@ type
 implementation
 
 uses
-  FileUtil, eventlog, fphttpclientbroker;
+  FileUtil, eventlog, fphttpclientbroker, URIParser;
 
 const
   s_SampleAccount='natgeo';
@@ -73,16 +73,33 @@ const
   s_Proxy='Proxy';
   s_Host='Host';
   s_Port='Port';
+  s_Uri='Uri';
 
 { TTestInstagramWithProxy }
 
 procedure TTestInstagramWithProxy.SetUp;
+var
+  AHost, AUsername, APassword: String;
+  APort: Word;
+  URI: TURI;
 begin
   inherited SetUp;
-  FInstagramParser.HTTPClient.HTTPProxyHost:=    FConf.ReadString(s_Proxy,  s_Host,     EmptyStr);
-  FInstagramParser.HTTPClient.HTTPProxyUsername:=FConf.ReadString(s_Proxy,  s_Username, EmptyStr);
-  FInstagramParser.HTTPClient.HTTPProxyPassword:=FConf.ReadString(s_Proxy,  s_Password, EmptyStr);
-  FInstagramParser.HTTPClient.HTTPProxyPort:=    FConf.ReadInteger(s_Proxy, s_Port,     0);
+  AHost:=    FConf.ReadString(s_Proxy,  s_Host,     EmptyStr);
+  AUsername:=FConf.ReadString(s_Proxy,  s_Username, EmptyStr);
+  APassword:=FConf.ReadString(s_Proxy,  s_Password, EmptyStr);
+  APort:=    FConf.ReadInteger(s_Proxy, s_Port,     0);
+  if AHost=EmptyStr then
+  begin
+    URI:=URIParser.ParseURI('https://'+FConf.ReadString(s_Proxy, s_Uri, EmptyStr));
+    AHost:=URI.Host;
+    APort:=URI.Port;
+    AUsername:=URI.Username;
+    APassword:=URI.Password;
+  end;
+  FInstagramParser.HTTPClient.HTTPProxyHost:=AHost;
+  FInstagramParser.HTTPClient.HTTPProxyPort:=APort;
+  FInstagramParser.HTTPClient.HTTPProxyUsername:=AUsername;
+  FInstagramParser.HTTPClient.HTTPProxyPassword:=APassword;
 end;
 
 { TTestInstagram }
@@ -122,9 +139,9 @@ begin
     (FInstagramParser.SessionUserName<>EmptyStr) and (FInstagramParser.SessionPassword<>EmptyStr));
   AFileName:='~cookies_'+FInstagramParser.SessionUserName+'.txt';
   if FileExists(AFileName) then
-    FInstagramParser.UserSession.LoadFromFile(AFileName);
-  FInstagramParser.Login;  // No need authorise every test...
-  FInstagramParser.UserSession.SaveToFile('~cookies_'+FInstagramParser.SessionUserName+'.txt');
+    FInstagramParser.UserSession.LoadFromFile(AFileName); // No need authorise every test...
+  FInstagramParser.Login;
+  FInstagramParser.UserSession.SaveToFile(AFileName);
   AssertTrue('Login is not succesful!', FInstagramParser.Logged);
   Sleep(1000); // to avoid ban from Instagram
 end;
@@ -236,8 +253,6 @@ end;
 procedure TTestInstagramBase.SetUp;
 begin
   FConf:=TMemIniFile.Create('testinstagram.ini');
-  TbFPHTTPClient.UnregisterClientClass; // The test can be run (theoretically) after test with synapse
-  TbFPHTTPClient.RegisterClientClass; // Native FCL HTTP Client
   FInstagramParser:=TInstagramParser.Create;
   FInstagramParser.Logger:=TEventLog.Create(nil);
   FInstagramParser.Logger.AppendContent:=True;
@@ -255,9 +270,6 @@ begin
   FInstagramParser.Logger:=nil;
   FreeAndNil(FInstagramParser);
 end;
-
-initialization
-  RegisterTests([TTestInstagram, TTestAuthorise]);
 
 end.
 

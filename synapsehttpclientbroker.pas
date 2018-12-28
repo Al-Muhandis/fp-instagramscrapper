@@ -87,7 +87,6 @@ begin
   FHTTPClient.Headers.AddStrings(FRequestHeaders, True);
   FResponseHeaders.Clear;
   FormData.SaveToStream(FHTTPClient.Document);
-//    WriteStrToStream(FHTTPClient.Document, FormData.Text);
   if FHTTPClient.HTTPMethod('POST', URL) then
   begin
     Response:=TStringList.Create;
@@ -116,7 +115,7 @@ begin
     Response:=TStringList.Create;
     try
       Response.LoadFromStream(FHTTPClient.Document);
-      FResponseHeaders.AddStrings(FRequestHeaders, True);
+      FResponseHeaders.AddStrings(FHTTPClient.Headers, True);
       Result:=Response.Text;
       {$IFDEF DEBUG}FResponseHeaders.SaveToFile('~ResponseHeaders.txt');{$ENDIF}
     finally

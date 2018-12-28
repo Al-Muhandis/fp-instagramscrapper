@@ -385,6 +385,7 @@ end;
 procedure TInstagramParser.generateHeaders(ASession: TStrings; gisToken: String
   );
 begin
+  FHTTPClient.RequestHeaders.Clear;
   if Assigned(ASession) then
   begin
     FHTTPClient.Cookies.Assign(ASession);
@@ -392,9 +393,7 @@ begin
     FHTTPClient.AddHeader('x-csrftoken', Fcsrf_token);
     if not (gisToken=EmptyStr) then
       FHTTPClient.AddHeader('x-instagram-gis', gisToken);
-  end
-  else
-    FHTTPClient.RequestHeaders.Clear;
+  end;
 end;
 
 class function TInstagramParser.getAccountJsonLink(const AnUserName: String): String;
@@ -495,6 +494,7 @@ end;
 
 procedure TInstagramParser.ParseCookies(ASession: TStrings);
 begin
+  {$IFDEF LDebug}FHTTPClient.ResponseHeaders.SaveToFile('~responseheaders.txt');{$ENDIF}
   ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'csrftoken');
   ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'mid');
   ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'sessionid');

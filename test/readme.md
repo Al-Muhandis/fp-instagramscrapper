@@ -17,4 +17,6 @@ Host=
 Port=
 Username=
 Password=
+;; You can instead above values to specify only one string value like this: host:password (or Username:Password@Host:Port) in Uri variable
+Uri=
 ```

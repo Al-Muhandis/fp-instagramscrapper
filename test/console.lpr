@@ -3,7 +3,7 @@ program console;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, ssl_openssl, consoletestrunner, testinstagram, testinstagram_synapse;
+  Classes, ssl_openssl, consoletestrunner, testinstagram_fphttpclient, testinstagram_synapse;
 
 type
 
