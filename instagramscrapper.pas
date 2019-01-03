@@ -812,8 +812,7 @@ begin
   FSessionUserName:=EmptyStr;
   FSessionPassword:=EmptyStr;
   FHTTPClient := TBaseHTTPClient.GetClientClass.Create(nil);
-  { TODO : REdirect property }
-//  FHTTPClient.AllowRedirect:=True;
+  FHTTPClient.AllowRedirect:=True;
 
   FUserSession := TStringList.Create;
 
@@ -1062,6 +1061,11 @@ begin
         if AnsiContainsStr(S1, 'https://www.instagram.com/') then
           ExtractProfileData;
   end;
+  if not Result then
+  begin
+    LogMesage(etError, '[Parse page error]: '+Url+' Length: '+Length(FResponse).ToString+'. HTTP: '+
+      FHTTPClient.ResponseStatusCode.ToString+' '+FHTTPClient.ResponseStatusText);
+  end;
 end;
 
 function TInstagramParser.IsInstagram: Boolean;
@@ -1230,11 +1234,15 @@ begin
   except
     on E: Exception do
     begin
-      LogMesage(etError, 'Error while GET ('+AnUrl+') request: '+E.Message+'. HTTPCode: '+IntToStr(FHTTPCode));
+      LogMesage(etError, 'Error while GET ('+AnUrl+'). '+E.ClassName+': '+E.Message+'. HTTP: '+
+        IntToStr(FHTTPCode)+' '+FHTTPClient.ResponseStatusText);
       Exit(False);
     end;
   end;
   Result:=FHTTPCode=200;
+  if not Result then
+    LogMesage(etError, 'Error while GET ('+AnUrl+'). HTTP: '+
+      IntToStr(FHTTPClient.ResponseStatusCode)+' '+FHTTPClient.ResponseStatusText);
 end;
 
 function TInstagramParser.HTTPGetJSON(AnURL: string): TJSONObject;
@@ -1298,10 +1306,14 @@ begin
     FHTTPClient.ResponseHeaders.SaveToFile('~response_header1.txt');
     {$ENDIF}
     if FHTTPClient.ResponseStatusCode<>200 then
+    begin
+      LogMesage(etError, 'Error while GET ('+LOGIN_URL+'). HTTPCode: '+
+        IntToStr(FHTTPClient.ResponseStatusCode)+': '+FHTTPClient.ResponseStatusText);
       if FHTTPClient.ResponseStatusCode = 400 then        // todo
         Exit(False)
       else
         Exit(False);
+    end;
     ParseCookies(FUserSession);
   end;
   Result:=True;

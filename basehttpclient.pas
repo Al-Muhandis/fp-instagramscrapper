@@ -17,15 +17,18 @@ type
 
   TBaseHTTPClient=class(TComponent)
   protected
+    function GetAllowRedirect: Boolean; virtual; abstract;
     function GetCookies: TStrings; virtual; abstract;
     function GetHTTPProxyHost: String; virtual; abstract;
     function GetHTTPProxyPassword: String; virtual; abstract;
     function GetHTTPProxyPort: Word; virtual; abstract;
     function GetHTTPProxyUsername: String; virtual; abstract;
+    function GetInternalHTTPClient: TObject; virtual; abstract;
     function GetRequestHeaders: TStrings; virtual; abstract;
     function GetResponseHeaders: TStrings; virtual; abstract;
     function GetResponseStatusCode: Integer; virtual; abstract;
     function GetResponseStatusText: String; virtual; abstract;
+    procedure SetAllowRedirect(AValue: Boolean); virtual; abstract;
     procedure SetCookies(AValue: TStrings); virtual; abstract;
     procedure SetHTTPProxyHost(AValue: String); virtual; abstract;
     procedure SetHTTPProxyPassword(AValue: String); virtual; abstract;
@@ -40,6 +43,7 @@ type
     class function GetClientClass: TBaseClientClass;
     class procedure RegisterClientClass;
     class procedure UnregisterClientClass;
+    property AllowRedirect: Boolean read GetAllowRedirect write SetAllowRedirect;
     property Cookies: TStrings read GetCookies write SetCookies;
     property RequestHeaders: TStrings read GetRequestHeaders write SetRequestHeaders;
     property ResponseHeaders: TStrings read GetResponseHeaders;
@@ -49,6 +53,7 @@ type
     property HTTPProxyPort: Word read GetHTTPProxyPort write SetHTTPProxyPort;
     property HTTPProxyUsername: String read GetHTTPProxyUsername write SetHTTPProxyUsername;
     property HTTPProxyPassword: String read GetHTTPProxyPassword write SetHTTPProxyPassword;
+    property InternalHTTPClient: TObject read GetInternalHTTPClient;
   end;
 
 implementation

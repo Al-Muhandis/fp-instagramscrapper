@@ -44,9 +44,9 @@ type
     procedure SetUp; override;
   end;
 
-  { TTestAuthorise }
+  { TTestAuthorize }
 
-  TTestAuthorise = class(TTestInstagramBase)
+  TTestAuthorize = class(TTestInstagramBase)
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -58,7 +58,7 @@ type
 implementation
 
 uses
-  FileUtil, eventlog, fphttpclientbroker, URIParser;
+  FileUtil, eventlog, URIParser;
 
 const
   s_SampleAccount='natgeo';
@@ -126,9 +126,9 @@ begin
   TestGetParseJSONMedia;
 end;
 
-{ TTestAuthorise }
+{ TTestAuthorize }
 
-procedure TTestAuthorise.SetUp;
+procedure TTestAuthorize.SetUp;
 var
   AFileName: String;
 begin
@@ -146,17 +146,17 @@ begin
   Sleep(1000); // to avoid ban from Instagram
 end;
 
-procedure TTestAuthorise.TearDown;
+procedure TTestAuthorize.TearDown;
 begin
   inherited TearDown;
 end;
 
-procedure TTestAuthorise.Authorise;
+procedure TTestAuthorize.Authorise;
 begin
   // Just only authorise
 end;
 
-procedure TTestAuthorise.TestGetStories;
+procedure TTestAuthorize.TestGetStories;
 var
   jsonStories: TJSONArray;
 begin

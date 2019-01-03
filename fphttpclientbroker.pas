@@ -15,15 +15,18 @@ type
   private
     FHTTPClient: TFPHTTPClient;
   protected
+    function GetAllowRedirect: Boolean; override;
     function GetCookies: TStrings; override;
     function GetHTTPProxyHost: String; override;
     function GetHTTPProxyPassword: String; override;
     function GetHTTPProxyPort: Word; override;
     function GetHTTPProxyUsername: String; override;
+    function GetInternalHTTPClient: TObject; override;
     function GetRequestHeaders: TStrings; override;
     function GetResponseHeaders: TStrings; override;
     function GetResponseStatusCode: Integer; override;
     function GetResponseStatusText: String; override;
+    procedure SetAllowRedirect(AValue: Boolean); override;
     procedure SetCookies(AValue: TStrings); override;
     procedure SetHTTPProxyHost(AValue: String); override;
     procedure SetHTTPProxyPassword(AValue: String); override;
@@ -42,6 +45,11 @@ type
 implementation
 
 { TbFPHTTPClient }
+
+function TbFPHTTPClient.GetAllowRedirect: Boolean;
+begin
+  Result:=FHTTPClient.AllowRedirect;
+end;
 
 function TbFPHTTPClient.GetCookies: TStrings;
 begin
@@ -68,6 +76,11 @@ begin
   Result:=FHTTPClient.Proxy.UserName;
 end;
 
+function TbFPHTTPClient.GetInternalHTTPClient: TObject;
+begin
+  Result:=FHTTPClient;
+end;
+
 function TbFPHTTPClient.GetRequestHeaders: TStrings;
 begin
   Result:=FHTTPClient.RequestHeaders;
@@ -86,6 +99,11 @@ end;
 function TbFPHTTPClient.GetResponseStatusText: String;
 begin
   Result:=FHTTPClient.ResponseStatusText;
+end;
+
+procedure TbFPHTTPClient.SetAllowRedirect(AValue: Boolean);
+begin
+  FHTTPClient.AllowRedirect:=AValue;
 end;
 
 procedure TbFPHTTPClient.SetCookies(AValue: TStrings);
