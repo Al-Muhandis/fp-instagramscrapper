@@ -68,7 +68,8 @@ type
     function GetHTTPProxyPort: Word;
     function GetHTTPProxyUsername: String;
     function IsLoggenIn(ASession: TStrings = nil): Boolean;
-    procedure generateHeaders(ASession: TStrings; gisToken: String = '');
+    procedure generateHeaders(ASession: TStrings; gisToken: String = ''; AReferer: String = '');
+    function generateGisToken(AVariables: TJSONObject): String;
     class function getAccountJsonLink(const AnUserName: String): String;
     function getEdgesFromGraphQueryHash(const AHash: String; variables: TJSONObject;
       const ResPath: String): TJSONArray;
@@ -76,6 +77,7 @@ type
     function getGraphQlQueryHashUrl(const QueryHash: String; const Parameters: String): String;
     class function getMediaLink(const ACode: String): String;
     class function GetEndCursor(PageInfo: TJSONObject): String;
+    function GetCommentsLink(AVariables: TJSONObject): String;
     function getUserStoriesLink: String;
     function getStoriesLink(const variables: TJSONObject): String;
     function getHighlightStoriesLinkIDs(const variables: TJSONObject): String;
@@ -123,7 +125,11 @@ type
     function GetDataFromUrl: Boolean;
     function GetJSONDataFromUrl: Boolean;
     function GetCommentsFromUrl: Boolean; overload;
-    function getMediaCommentsByCode(ACount: Integer = 10; AMaxID: Int64 = 0): Boolean;
+    { seems it is not working now }
+    function getMediaCommentsByCode(ACount: Integer = 10; AMaxID: Int64 = 0): Boolean; deprecated;
+    { Retrieves comments by query hash url (without auht) }
+    function getMediaCommentsByCodeHash(ACount: Integer; AAfter: String): Boolean;
+    function getMediaCommentsByCodeHash(AAfter: String): Boolean;
     function GetSrcsFromHTML: Boolean;
     function IsInstagram: Boolean;
     function IsInstagramUrl(const AnUrl: String): Boolean; overload;
@@ -211,7 +217,8 @@ const
 implementation
 
 uses
-  strutils, jsonparser, jsonscanner;
+  strutils, jsonparser, jsonscanner, md5
+  ;
 
 const
   MAX_COMMENTS_PER_REQUEST = 300;
@@ -223,13 +230,13 @@ const
   InstagramQueryIdSTORIES = '17873473675158481';
   GRAPH_QL_QUERY_URL = 'https://www.instagram.com/graphql/query/?query_id={{queryId}}';
   ACCOUNT_JSON_INFO = 'https://www.instagram.com/{username}/?__a=1';
-//  ACCOUNT_MEDIAS = 'https://www.instagram.com/{username}/?__a=1&max_id={max_id}';
   MEDIA_JSON_INFO = 'https://www.instagram.com/p/{code}/?__a=1';
   GRAPH_QL_QUERY_URL1 = 'https://www.instagram.com/graphql/query/?query_hash={{queryHash}}';
   ACCOUNT_MEDIAS2 = 'https://instagram.com/graphql/query/?query_id=17888483320059182&id={user_id}&first=12&after={end_cursor}';
-  //ACCOUNT_MEDIAS3 = 'https://www.instagram.com/graphql/query/?query_hash=a5164aed103f24b03e7b7747a2d94e3c&variables={"id":"1775246512","first":12,"after":"AQBVsfylyZxyuP11Oeb51dK4MAC1ptz9s69g8KhW3qZfjf-iZKkeSlf15o292ChEy3sK3gPQMc738xS2BImRipymLlVOguRcZxRQULVNNH9cmg"}';
   QryHash_HLStoriesIDs = '7c16654f22c819fb63d1183034a5162f';
   QryHash_HLStories1 = '45246d3fe16ccc6577e0bd297a5db1ab';
+  QryHash_Comments = 'f0986789a5c5d17c2400faebf16efd0d';
+  //QryHash_Comments1 = '33ba35852cb50da46f5b5e889df7d159';
 
 //  url_privateinfo_by_id='https://i.instagram.com/api/v1/users/{user_id}/info/'; No longer available!
 
@@ -382,18 +389,25 @@ begin
   FLogger:=AValue;
 end;
 
-procedure TInstagramParser.generateHeaders(ASession: TStrings; gisToken: String
-  );
+procedure TInstagramParser.generateHeaders(ASession: TStrings; gisToken: String; AReferer: String);
 begin
   FHTTPClient.RequestHeaders.Clear;
   if Assigned(ASession) then
   begin
     FHTTPClient.Cookies.Assign(ASession);
-    FHTTPClient.AddHeader('referer', BASE_URL+'/');
+    if AReferer=EmptyStr then
+      FHTTPClient.AddHeader('referer', BASE_URL+'/')
+    else
+      FHTTPClient.AddHeader('referer', AReferer);
     FHTTPClient.AddHeader('x-csrftoken', Fcsrf_token);
     if not (gisToken=EmptyStr) then
       FHTTPClient.AddHeader('x-instagram-gis', gisToken);
   end;
+end;
+
+function TInstagramParser.generateGisToken(AVariables: TJSONObject): String;
+begin
+  Result:=MD5Print(MD5String(FrhxGis+':'+AVariables.AsJSON));
 end;
 
 class function TInstagramParser.getAccountJsonLink(const AnUserName: String): String;
@@ -427,7 +441,12 @@ begin
   if PageInfo.Booleans['has_next_page'] then
     Result:=PageInfo.Strings['end_cursor']
   else
-    Result:='';
+    Result:=EmptyStr;
+end;
+
+function TInstagramParser.GetCommentsLink(AVariables: TJSONObject): String;
+begin
+  Result := getGraphQlQueryHashUrl(QryHash_Comments, AVariables.AsJSON);
 end;
 
 function TInstagramParser.getUserStoriesLink: String;
@@ -1005,6 +1024,106 @@ begin
   FCommentHasPrev:=HasPrevious;
 end;
 
+function TInstagramParser.getMediaCommentsByCodeHash(ACount: Integer; AAfter: String): Boolean;
+var
+  AUrl: String;
+  jsonResponse: TJSONData;
+  AjsonPost, variables: TJSONObject;
+  HasPrevious: Boolean;
+  Remain, AnIndex, NumberOfCommentsToRetreive: Integer;
+  AMaxID: Int64;
+
+const
+  MaxComment2 = 40;
+begin
+  Result:=False;
+  FCommentCount:=0;
+//  FCommentList.Clear;
+  Remain := ACount;
+  AnIndex := 0;
+  HasPrevious := true;
+  FEndCursor:=AAfter;
+  while (HasPrevious and (AnIndex < ACount)) do
+  begin
+    if (Remain > MaxComment2) then
+    begin
+      NumberOfCommentsToRetreive := MaxComment2;
+      Remain -= MaxComment2;
+      AnIndex += MaxComment2;
+    end else
+    begin
+      NumberOfCommentsToRetreive := Remain;
+      AnIndex += Remain;
+      Remain := 0;
+    end;
+    variables:=TJSONObject.Create;
+    try
+      variables.Strings['shortcode']:=FShortcode;
+      variables.Integers['first']:=NumberOfCommentsToRetreive;
+      variables.Strings['after']:=FEndCursor;
+      variables.CompressedJSON:=True;
+      generateHeaders(UserSession, generateGisToken(variables), GetPostUrl(FShortcode));
+      AUrl:=GetCommentsLink(variables);
+    finally
+      FreeAndNil(variables);
+    end;
+    jsonResponse:=HTTPGetJSON(AUrl);
+    try
+      if not Assigned(jsonResponse) then
+        Exit(False);
+      AUrl:=jsonResponse.AsJSON;
+      AjsonPost:=jsonResponse.FindPath('data.shortcode_media') as TJSONObject;
+      if not Assigned(AjsonPost) then
+        Exit(False);
+      Result:=ExtractCommentsFromMediaJSONData(AjsonPost, HasPrevious, AMaxID);
+    finally
+      jsonResponse.Free;
+    end;
+  end;
+  FMaxCommentID:=AMaxID;
+  FCommentHasPrev:=HasPrevious;
+end;
+
+function TInstagramParser.getMediaCommentsByCodeHash(AAfter: String): Boolean;
+var
+  AUrl: String;
+  jsonResponse: TJSONData;
+  AjsonPost, variables: TJSONObject;
+  HasPrevious: Boolean;
+  AMaxID: Int64;
+const
+  MaxComment2 = 200;
+begin
+  Result:=False;
+  FCommentCount:=0;
+  FEndCursor:=AAfter;
+  variables:=TJSONObject.Create;
+  try
+    variables.Strings['shortcode']:=FShortcode;
+    variables.Integers['first']:=MaxComment2;
+    variables.Strings['after']:=FEndCursor;
+    variables.CompressedJSON:=True;
+    generateHeaders(UserSession, generateGisToken(variables), GetPostUrl(FShortcode));
+    AUrl:=GetCommentsLink(variables);
+  finally
+    FreeAndNil(variables);
+  end;
+  jsonResponse:=HTTPGetJSON(AUrl);
+  try
+    if not Assigned(jsonResponse) then
+      Exit(False);
+    AUrl:=jsonResponse.AsJSON;
+    AjsonPost:=jsonResponse.FindPath('data.shortcode_media') as TJSONObject;
+    if not Assigned(AjsonPost) then
+      Exit(False);
+    Result:=ExtractCommentsFromMediaJSONData(AjsonPost, HasPrevious, AMaxID);
+  finally
+    jsonResponse.Free;
+  end;
+  FMaxCommentID:=AMaxID;
+  FCommentHasPrev:=HasPrevious;
+end;
+
 function TInstagramParser.GetSrcsFromHTML: Boolean;
 var
   APos: Integer;
@@ -1141,6 +1260,10 @@ begin
       FCommentList.Add(jsonEnum.Value.Clone);
     hasPrevious:=
       AMediaJSON.FindPath('edge_media_to_comment.page_info.has_next_page').AsBoolean;
+    if hasPrevious then
+      FEndCursor:=AMediaJSON.FindPath('edge_media_to_comment.page_info.end_cursor').AsString
+    else
+      FEndCursor:=EmptyStr;
     if nodes.Count=0 then
       Exit(True);
     AMaxID := nodes[0].FindPath('node.id').AsInt64;

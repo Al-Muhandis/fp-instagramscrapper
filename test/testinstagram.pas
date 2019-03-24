@@ -34,6 +34,7 @@ type
   published
     procedure TestGetParseJSONAccount;
     procedure TestGetParseJSONMedia;
+    procedure TestGetParseComments;
     procedure TestGetParseMultiple;
   end;
 
@@ -49,7 +50,6 @@ type
   TTestAuthorize = class(TTestInstagramBase)
   protected
     procedure SetUp; override;
-    procedure TearDown; override;
   published
     procedure Authorise;
     procedure TestGetStories;
@@ -119,6 +119,21 @@ begin
   MediaProperties;
 end;
 
+procedure TTestInstagram.TestGetParseComments;
+begin
+  FInstagramParser.Url:=FInstagramParser.UrlFromShortcode(TargetMedia);
+  FInstagramParser.GetCommentsFromUrl;  // We must get gisToken and End_Cursor for futher requests
+  Sleep(1000);
+  FInstagramParser.Shortcode:=TargetMedia;
+  while FInstagramParser.CommentHasPrev do
+  begin
+    if not FInstagramParser.getMediaCommentsByCodeHash(FInstagramParser.EndCursor) then
+      Fail('Failed to retrieve the data');
+    Sleep(3000);
+  end;
+  SaveJSONObject(FInstagramParser.CommentList, '~comments.json');
+end;
+
 procedure TTestInstagram.TestGetParseMultiple;
 begin
   TestGetParseJSONAccount;
@@ -144,11 +159,6 @@ begin
   FInstagramParser.UserSession.SaveToFile(AFileName);
   AssertTrue('Login is not succesful!', FInstagramParser.Logged);
   Sleep(1000); // to avoid ban from Instagram
-end;
-
-procedure TTestAuthorize.TearDown;
-begin
-  inherited TearDown;
 end;
 
 procedure TTestAuthorize.Authorise;

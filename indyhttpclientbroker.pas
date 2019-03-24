@@ -51,7 +51,7 @@ type
 implementation
 
 uses
-  IdURI
+  IdURI, IdException
   ;
 
 { TIndyHTTPClient }
@@ -68,7 +68,9 @@ begin
   FIDSSL := TIdSSLIOHandlerSocketOpenSSL.Create(nil);
   FHTTPClient.IOHandler:=FIDSSL;
   FIDSSL.ConnectTimeout:=10000;
-  FIDSSL.ReadTimeout:=20000;
+  FIDSSL.ReadTimeout:=16000;
+  FHTTPClient.ReadTimeout:=16000;
+  FHTTPClient.ConnectTimeout:=10000;
 //  FHTTPClient.CookieManager:=TIdCookieManager.Create(nil);
   FRequestHeaders:=TStringList.Create;
   FRequestHeaders.NameValueSeparator:=':';
@@ -127,7 +129,12 @@ begin
   FHTTPClient.Request.CustomHeaders.AddStrings(FRequestHeaders);
   FResponseHeaders.Clear;
   try
-    Result:=FHTTPClient.Get(AUrl);
+    try
+      Result:=FHTTPClient.Get(AUrl);
+    except
+      on E: EIdException do
+        raise EHTTPClient.Create(E.ClassName+': '+E.Message);
+    end;
   finally
     if FHTTPClient.ResponseCode=200 then
     begin
