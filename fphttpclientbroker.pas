@@ -14,6 +14,7 @@ type
   TbFPHTTPClient=class(TBaseHTTPClient)
   private
     FHTTPClient: TFPHTTPClient;
+    procedure PrepareHeaders;
   protected
     function GetAllowRedirect: Boolean; override;
     function GetCookies: TStrings; override;
@@ -45,6 +46,11 @@ type
 implementation
 
 { TbFPHTTPClient }
+
+procedure TbFPHTTPClient.PrepareHeaders;
+begin
+  FHTTPClient.AddHeader('User-Agent', UserAgent);
+end;
 
 function TbFPHTTPClient.GetAllowRedirect: Boolean;
 begin
@@ -161,11 +167,13 @@ end;
 function TbFPHTTPClient.FormPost(const URL: string; FormData: TStrings
   ): String;
 begin
+  PrepareHeaders;
   Result:=FHTTPClient.FormPost(URL, FormData);
 end;
 
 function TbFPHTTPClient.Get(const AUrl: String): String;
 begin
+  PrepareHeaders;
   Result:=FHTTPClient.Get(AUrl);
 end;
 

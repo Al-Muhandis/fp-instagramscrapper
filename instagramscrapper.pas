@@ -27,6 +27,7 @@ type
     FjsonMedias: TJSONObject;
     FjsonPost: TJSONObject;
     FLogged: Boolean;
+    Fmid: String;
     FParseComments: Boolean;
     FPostCaption: String;
     FProfilePic: String;
@@ -40,6 +41,7 @@ type
     FMaxCommentID: Int64;
     FMaxCommentsGet: Integer;
     FParsed: Boolean;
+    FSessionID: String;
     FShortcode: String;
     FSessionPassword: String;
     FSessionUserName: String;
@@ -57,6 +59,10 @@ type
     FMaxID: Int64;
     FrhxGis: String;
     Fcsrf_token: String;
+    procedure _generateHeaders(ASession: TStrings; aGisToken: String='');
+    function _getStories(AReel_ids: TJSONArray = nil): TJSONArray;
+    function _IsLoggenIn(ASession: TStrings = nil): Boolean;
+    procedure _ParseCookies(ASession: TStrings);
     procedure AddMediaUrl(ANode: TJSONObject);
     function ExtractCommentsFromMediaJSONData(AMediaJSON: TJSONObject;
       out hasPrevious: Boolean; out AMaxID: Int64): Boolean;
@@ -83,7 +89,7 @@ type
     function getHighlightStoriesLinkIDs(const variables: TJSONObject): String;
     function getHighlightStoriesLink1(const variables: TJSONObject): String;
     class function getAccountMediasJsonLink(AUserID: Int64; const After: String): String;
-    procedure LogMesage(EventType: TEventType; const Msg: String);
+    procedure LogMessage(EventType: TEventType; const Msg: String);
     procedure ParseCookies(ASession: TStrings);
     procedure ParseSetCookie(AHeaders: TStrings; ASession: TStrings; const AName: String);
     function Parse_SharedData(const JSONData: String): Boolean;
@@ -136,13 +142,16 @@ type
     function HTTPGetText(AnURL: string = ''): Boolean;
     function HTTPGetJSON(AnURL: string = ''): TJSONObject;
     function Login(Force: Boolean = False): Boolean;
+    function _Login(Force: Boolean = False): Boolean;
     function CheckLogin(): Boolean;
     function GetPostUrl(APostID: String = ''): String;
     function getStories(AReel_ids: TJSONArray = nil): TJSONArray;
     function getStoriesForUser(AUserID: Int64 = 0): TJSONArray;
+    function _getStoriesForUser(AUserID: Int64 = 0): TJSONArray;
     function getHLStoriesForUser(AUserID: Int64 = 0): Tjson_HLStories;
     function getHLStoriesForUser_internal(AUserID: Int64 = 0): Tjson_HLStories;
     function LoginNGetStories(reel_ids: TJSONArray = nil): TJSONArray;
+    function _LoginNGetStories(reel_ids: TJSONArray = nil): TJSONArray;
     function LoginNGetHLStories(AUserID: Int64 = 0): Tjson_HLStories;
     function LoginNGetMediaCommentsByCode(ACount: Integer = 10; AMaxID: Int64 = 0): Boolean;
 //    function PrivateInfoByID(AccountID: Int64): Boolean; No longer available!
@@ -188,6 +197,7 @@ type
     property Logged: Boolean read FLogged write SetLogged;
     property HTTPCode: Integer read FHTTPCode write SetHTTPCode; deprecated; // Use HTTPClient.ResponseStatusCode instead
     property HTTPClient: TBaseHTTPClient read FHTTPClient;
+    property Response: String read FResponse;
   end;
 
 const
@@ -400,6 +410,7 @@ begin
     else
       FHTTPClient.AddHeader('referer', AReferer);
     FHTTPClient.AddHeader('x-csrftoken', Fcsrf_token);
+    FHTTPClient.AddHeader('X-CSRFToken', Fcsrf_token);
     if not (gisToken=EmptyStr) then
       FHTTPClient.AddHeader('x-instagram-gis', gisToken);
   end;
@@ -487,7 +498,7 @@ begin
     if not Assigned(jsonResponse) then
       Exit;
     try
-      {$IFDEF DEBUG}LogMesage(etDebug, 'Queryhash: '+jsonResponse.AsJSON);{$ENDIF}
+      {$IFDEF DEBUG}LogMessage(etDebug, 'Queryhash: '+jsonResponse.AsJSON);{$ENDIF}
       jsonArray:=jsonResponse.FindPath(ResPath) as TJSONArray;
       if Assigned(jsonArray) then
         Result:=jsonArray.Clone as TJSONArray;
@@ -505,7 +516,7 @@ begin
   Result:=ReplaceStr(Result, '{end_cursor}', After);
 end;
 
-procedure TInstagramParser.LogMesage(EventType: TEventType; const Msg: String);
+procedure TInstagramParser.LogMessage(EventType: TEventType; const Msg: String);
 begin
   if Assigned(FLogger) then
     FLogger.Log(EventType, Msg);
@@ -514,6 +525,7 @@ end;
 procedure TInstagramParser.ParseCookies(ASession: TStrings);
 begin
   {$IFDEF LDebug}FHTTPClient.ResponseHeaders.SaveToFile('~responseheaders.txt');{$ENDIF}
+  ASession.Values['ig_cb']:='1';
   ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'csrftoken');
   ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'mid');
   ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'sessionid');
@@ -560,7 +572,7 @@ begin
       p.Free;
     end;
   except
-    LogMesage(etError, 'Failed to parse shared JSON data: "'+JSONData+'"');
+    LogMessage(etError, 'Failed to parse shared JSON data: "'+JSONData+'"');
     Result:=False;
   end;
 end;
@@ -571,12 +583,12 @@ begin
     try
       jsonUser:=FJSON_Data.Objects['entry_data'].Arrays['ProfilePage'].Objects[0].Objects['graphql'].Objects['user'].Clone as TJSONObject;
       if not Parse_jsonUser then
-        LogMesage(etError, 'Failed to parse json user data: '+jsonUser.AsJSON);
+        LogMessage(etError, 'Failed to parse json user data: '+jsonUser.AsJSON);
     except
       on E: Exception do
       begin
-        LogMesage(etError, 'Unable to parse jsonUser. '+ e.ClassName+': '+e.Message);
-        LogMesage(etDebug, FJSON_Data.AsJSON);
+        LogMessage(etError, 'Unable to parse jsonUser. '+ e.ClassName+': '+e.Message);
+        LogMessage(etDebug, FJSON_Data.AsJSON);
         FjsonUser:=nil;
       end;
     end;
@@ -588,7 +600,7 @@ begin
     try
       jsonPost:=FJSON_Data.Objects['entry_data'].Arrays['PostPage'].Objects[0].Objects['graphql'].Objects['shortcode_media'].Clone as TJSONObject;
       if not Parse_jsonPost then
-        LogMesage(etError, 'Failed to parse json media post data: '+jsonPost.AsJSON);
+        LogMessage(etError, 'Failed to parse json media post data: '+jsonPost.AsJSON);
     except
       FjsonPost:=nil;
     end;
@@ -636,7 +648,7 @@ end;
 
 function TInstagramParser.Parse_jsonPost: Boolean;
 var
-  jo: TJSONObject;
+  jo, aEdgeMediaToComment: TJSONObject;
   jsonEnum: TJSONEnum;
 begin
   try
@@ -651,7 +663,13 @@ begin
     else
       AddMediaUrl(FjsonPost);
 
-    FCommentCount:=FjsonPost.Objects['edge_media_to_comment'].Integers['count'];
+    if not FjsonPost.Find('edge_media_to_comment', aEdgeMediaToComment) then
+      FjsonPost.Find('edge_media_to_parent_comment', aEdgeMediaToComment);
+    if Assigned(aEdgeMediaToComment) then
+      FCommentCount:=aEdgeMediaToComment.Integers['count']
+    else
+      FCommentCount:=0;
+
     FLikes:=FjsonPost.Objects['edge_media_preview_like'].Integers['count'];
 
     jsonUser:=FjsonPost.Objects['owner'].Clone as TJSONObject;
@@ -663,7 +681,11 @@ begin
 
     Result:=True;
   except
-    Result:=False
+    on E: Exception do
+    begin
+      LogMessage(etError, 'Media post parser error '+E.ClassName+': '+E.Message);
+      Result:=False
+    end;
   end;
 end;
 
@@ -1092,7 +1114,7 @@ var
   HasPrevious: Boolean;
   AMaxID: Int64;
 const
-  MaxComment2 = 200;
+  MaxComment2 = 50;
 begin
   Result:=False;
   FCommentCount:=0;
@@ -1182,7 +1204,7 @@ begin
   end;
   if not Result then
   begin
-    LogMesage(etError, '[Parse page error]: '+Url+' Length: '+Length(FResponse).ToString+'. HTTP: '+
+    LogMessage(etError, '[Parse page error]: '+Url+' Length: '+Length(FResponse).ToString+'. HTTP: '+
       FHTTPClient.ResponseStatusCode.ToString+' '+FHTTPClient.ResponseStatusText);
   end;
 end;
@@ -1222,6 +1244,162 @@ begin
   Result:=IsInstagram;
 end;
 
+procedure TInstagramParser._generateHeaders(ASession: TStrings; aGisToken: String);
+begin
+  FHTTPClient.RequestHeaders.Clear;
+  if Assigned(ASession) then
+  begin
+    if ASession.Values['csrftoken']=EmptyStr then
+      Fcsrf_token:=ASession.Values['x-csrftoken']
+    else
+      Fcsrf_token:=ASession.Values['csrftoken'];
+    FHTTPClient.Cookies.Assign(ASession);
+    FHTTPClient.AddHeader('referer', BASE_URL+'/');
+    FHTTPClient.AddHeader('x-csrftoken', Fcsrf_token);
+    if aGisToken<>EmptyStr then
+      FHTTPClient.AddHeader('x-instagram-gis', aGisToken);
+  end;
+end;
+
+function TInstagramParser._getStories(AReel_ids: TJSONArray): TJSONArray;
+var
+  jsonResponse, variables: TJSONObject;
+  edges, reels_media: TJSONArray;
+  edge: TJSONEnum;
+begin
+  Result:=nil;
+  variables:=TJSONObject.Create(['precomposed_overlay', False, 'reel_ids', TJSONArray.Create]);
+  variables.CompressedJSON:=True;
+  try
+    if not Assigned(AReel_ids) then
+    begin
+      _generateHeaders(userSession);
+      jsonResponse:=HTTPGetJSON(getUserStoriesLink);
+      if not Assigned(jsonResponse) then
+        Exit;
+      edges:=jsonResponse.FindPath('data.user.feed_reels_tray.edge_reels_tray_to_reel.edges') as TJSONArray;
+      if not Assigned(edges) then
+        Exit;
+      for edge in edges do
+        variables.Arrays['reel_ids'].Add((edge.Value as TJSONObject).Objects['node'].Int64s['id']);
+      FreeAndNil(jsonResponse);
+    end
+    else
+      variables.Arrays['reel_ids'] := AReel_ids.Clone as TJSONArray;
+    _generateHeaders(UserSession);
+    jsonResponse:=HTTPGetJSON(getStoriesLink(variables));
+    if not Assigned(jsonResponse) then
+      Exit;
+    {$IFDEF DEBUG}StrToFile(jsonResponse.FormatJSON, '~getStoriesLink.json');{$ENDIF}
+    reels_media:=jsonResponse.Objects['data'].Arrays['reels_media'];
+    {$IFDEF DEBUG}StrToFile(reels_media.FormatJSON, '~reels_media.json');{$ENDIF}
+    if not Assigned(reels_media) then
+      Exit;
+    Result:=reels_media.Clone as TJSONArray;
+  finally
+    variables.Free;
+    if Assigned(jsonResponse) then
+      jsonResponse.Free;
+  end;
+end;
+
+function TInstagramParser._IsLoggenIn(ASession: TStrings): Boolean;
+begin
+  if not Assigned(ASession) or (ASession.Values['sessionid']=EmptyStr) then
+    Exit(False);
+  FSessionID:=ASession.Values['sessionid'];
+  Fcsrf_token:=ASession.Values['csrftoken'];
+  with FHTTPClient.Cookies do
+  begin
+    Clear;
+    Values['ig_cb']:='1';
+    Values['referer']:=BASE_URL+'/';
+    Values['x-csrftoken']:=Fcsrf_token;
+    Values['X-CSRFToken']:=Fcsrf_token;
+  end;
+  if not HTTPGetText(BASE_URL+'/') then
+    Exit(False);
+  _ParseCookies(ASession);
+  if ASession.Values['ds_user_id']=EmptyStr then
+    Exit(false);
+  Result:=True;
+end;
+
+function TInstagramParser._Login(Force: Boolean): Boolean;
+var
+  AFormData: TStrings;
+begin
+  if (FSessionUserName = EmptyStr) or (FSessionPassword = EmptyStr) then
+  begin
+    LogMessage(etError, 'Username or password not specified!');
+    Exit(False);
+  end;
+  if Force or not _IsLoggenIn(UserSession) then
+  begin
+    if not HTTPGetText(BASE_URL+'/') then
+    begin
+      Logger.Error('Can''t get '+BASE_URL+' while logging');
+      Exit(False);
+    end;
+    ExtractSharedData;
+    _ParseCookies(FUserSession);
+    Fmid:=FUserSession.Values['mid'];
+    with FHTTPClient.Cookies do
+    begin
+      Clear;
+      Values['ig_cb']:='1';
+      Values['csrftoken']:=Fcsrf_token;
+      Values['mid']:=Fmid;
+    end;
+    with FHTTPClient do
+    begin
+      AddHeader('referer', BASE_URL+'/');
+      AddHeader('x-csrftoken', Fcsrf_token);
+      AddHeader('X-CSRFToken', Fcsrf_token);
+    end;
+    //{$IFDEF DEBUG}
+    FHTTPClient.Cookies.SaveToFile('~cookies.txt');
+    FHTTPClient.RequestHeaders.SaveToFile('~request_headers.txt');// {$ENDIF}
+    AFormData:=TStringList.Create;
+    AFormData.AddStrings(['username='+SessionUserName, 'password='+SessionPassword]);
+    try
+      FResponse:=FHTTPClient.FormPost(LOGIN_URL, AFormData);
+    finally
+      AFormData.Free;
+    end;
+    //{$IFDEF DEBUG}
+    StrToFile(FResponse, '~response.html');
+    FHTTPClient.ResponseHeaders.SaveToFile('~response_header1.txt');
+    //{$ENDIF}
+    if FHTTPClient.ResponseStatusCode<>200 then
+    begin
+      LogMessage(etError, 'Error while POST ('+LOGIN_URL+'). HTTPCode: '+
+        IntToStr(FHTTPClient.ResponseStatusCode)+': '+FHTTPClient.ResponseStatusText);
+      if FHTTPClient.ResponseStatusCode = 400 then        // todo
+        Exit(False)
+      else
+        Exit(False);
+    end;
+    _ParseCookies(FUserSession);
+  end;
+  Result:=True;
+  FLogged:=True;
+  _generateHeaders(UserSession);
+end;
+
+procedure TInstagramParser._ParseCookies(ASession: TStrings);
+begin
+  {$IFDEF LDebug}FHTTPClient.ResponseHeaders.SaveToFile('~responseheaders.txt');{$ENDIF}
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'csrftoken');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'mid');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'sessionid');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'ds_user_id');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'rur');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'mcd');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'target');
+  ParseSetCookie(FHTTPClient.ResponseHeaders, ASession, 'urlgen');
+end;
+
 procedure TInstagramParser.AddMediaUrl(ANode: TJSONObject);
 var
   Adrs, S: String;
@@ -1251,17 +1429,21 @@ function TInstagramParser.ExtractCommentsFromMediaJSONData(
 var
   nodes: TJSONArray;
   jsonEnum: TJSONEnum;
+  aEdgeMediaToComment: TJSONObject;
 begin
   Result:=False;
   try
-    FCommentCount:=AMediaJSON.FindPath('edge_media_to_comment.count').AsInteger;
-    nodes:=AMediaJSON.FindPath('edge_media_to_comment.edges') as TJSONArray;
+    if not AMediaJSON.Find('edge_media_to_comment', aEdgeMediaToComment) then
+      if not AMediaJSON.Find('edge_media_to_parent_comment', aEdgeMediaToComment) then
+        Exit(False);
+    FCommentCount:=aEdgeMediaToComment.Integers['count'];
+    nodes:=aEdgeMediaToComment.Arrays['edges'];
     for jsonEnum in nodes do
       FCommentList.Add(jsonEnum.Value.Clone);
     hasPrevious:=
-      AMediaJSON.FindPath('edge_media_to_comment.page_info.has_next_page').AsBoolean;
+      aEdgeMediaToComment.FindPath('page_info.has_next_page').AsBoolean;
     if hasPrevious then
-      FEndCursor:=AMediaJSON.FindPath('edge_media_to_comment.page_info.end_cursor').AsString
+      FEndCursor:=aEdgeMediaToComment.FindPath('page_info.end_cursor').AsString
     else
       FEndCursor:=EmptyStr;
     if nodes.Count=0 then
@@ -1270,7 +1452,7 @@ begin
     Result:=True;
   except
     on E: Exception do
-      LogMesage(etError, 'Failed parse comments: '+AMediaJSON.AsJSON);
+      LogMessage(etError, 'Failed parse comments: '+AMediaJSON.AsJSON);
   end;
 end;
 
@@ -1281,6 +1463,7 @@ var
 begin
   APos:=1;
   Result:=False;
+  Fcsrf_token:=EmptyStr;
   if ExtractBetweenKeys(FResponse, 'window._sharedData = ', ';</script>', APos, js) then
     Result:=Parse_SharedData(js);
 end;
@@ -1357,14 +1540,14 @@ begin
   except
     on E: Exception do
     begin
-      LogMesage(etError, 'Error while GET ('+AnUrl+'). '+E.ClassName+': '+E.Message+'. HTTP: '+
+      LogMessage(etError, 'Error while GET ('+AnUrl+'). '+E.ClassName+': '+E.Message+'. HTTP: '+
         IntToStr(FHTTPCode)+' '+FHTTPClient.ResponseStatusText);
       Exit(False);
     end;
   end;
   Result:=FHTTPCode=200;
   if not Result then
-    LogMesage(etError, 'Error while GET ('+AnUrl+'). HTTP: '+
+    LogMessage(etError, 'Error while GET ('+AnUrl+'). HTTP: '+
       IntToStr(FHTTPClient.ResponseStatusCode)+' '+FHTTPClient.ResponseStatusText);
 end;
 
@@ -1386,7 +1569,8 @@ begin
       on E: Exception do
         begin
           Result:=nil;
-          LogMesage(etError, 'Error while parse JSON by URL ('+AnUrl+'): '+E.Message);
+          LogMessage(etError, 'Error while parse JSON by URL ('+AnUrl+'): '+E.Message);
+          //LogMessage(etDebug, 'JSON reply: '+FResponse);
         end;
     end;
   end;
@@ -1398,7 +1582,7 @@ var
 begin
   if (FSessionUserName = EmptyStr) or (FSessionPassword = EmptyStr) then
   begin
-    LogMesage(etError, 'Username or password not specified!');
+    LogMessage(etError, 'Username or password not specified!');
     Exit(False);
   end;
   if Force or not IsLoggenIn(UserSession) then
@@ -1430,7 +1614,7 @@ begin
     {$ENDIF}
     if FHTTPClient.ResponseStatusCode<>200 then
     begin
-      LogMesage(etError, 'Error while GET ('+LOGIN_URL+'). HTTPCode: '+
+      LogMessage(etError, 'Error while POST ('+LOGIN_URL+'). HTTPCode: '+
         IntToStr(FHTTPClient.ResponseStatusCode)+': '+FHTTPClient.ResponseStatusText);
       if FHTTPClient.ResponseStatusCode = 400 then        // todo
         Exit(False)
@@ -1524,6 +1708,30 @@ begin
   end;
 end;
 
+function TInstagramParser._getStoriesForUser(AUserID: Int64): TJSONArray;
+var
+  reel_ids, reels_media: TJSONArray;
+begin
+  Result:=nil;
+  reel_ids:=TJSONArray.Create;
+  if AUserID=0 then
+    AUserID:=FUserID;
+  reel_ids.Add(AUserID);
+  try
+    reels_media:=_LoginNGetStories(reel_ids);
+    try
+      if Assigned(reels_media) then
+        if reels_media.Count>0 then
+          Result:=reels_media.Objects[0].Arrays['items'].Clone as TJSONArray;
+    except
+      Result:=nil;
+    end;
+  finally
+    reels_media.Free;
+    reel_ids.Free;
+  end;
+end;
+
 function TInstagramParser.getHLStoriesForUser(AUserID: Int64): Tjson_HLStories;
 begin
   Result:=nil;
@@ -1568,7 +1776,16 @@ begin
   if Login() then
     Result:=getStories(reel_ids)
   else
-    LogMesage(etError, 'Failed to login');
+    LogMessage(etError, 'Failed to login');
+end;
+
+function TInstagramParser._LoginNGetStories(reel_ids: TJSONArray): TJSONArray;
+begin
+  Result:=nil;
+  if _Login() then
+    Result:=_getStories(reel_ids)
+  else
+    LogMessage(etError, 'Failed to login');
 end;
 
 function TInstagramParser.LoginNGetHLStories(AUserID: Int64): Tjson_HLStories;
@@ -1585,30 +1802,7 @@ begin
   if CheckLogin() then
     Result:=getMediaCommentsByCode(ACount, AMaxID);
 end;
-{ No longer available! You can get username by request data from earlier media post, for example
-function TInstagramParser.PrivateInfoByID(AccountID: Int64): Boolean;
-var
-  jsonResponce: TJSONObject;
-  AnUrl: String;
-begin
-  try
-    Result:=False;          }
-    //AnUrl:=ReplaceStr(url_privateinfo_by_id, '{user_id}', IntToStr(AccountID));
-{    jsonResponce:=HTTPGetJSON(AnUrl) as TJSONObject;
-    try
-      jsonUser:=jsonResponce.Objects['user'].Clone as TJSONObject;
-      if Assigned(jsonUser) then
-        Result:=Parse_jsonUser(False);
-      if Result then
-        FUserID:=AccountID;
-    finally
-      jsonResponce.Free;
-    end;
-  except
-    Result:=False;
-  end;
-end;
-}
+
 procedure TInstagramParser.SetUrlFromProfile(const Username: String);
 begin
   FUsername:=Username;

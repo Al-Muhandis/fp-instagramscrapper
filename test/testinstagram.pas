@@ -155,7 +155,7 @@ begin
   AFileName:='~cookies_'+FInstagramParser.SessionUserName+'.txt';
   if FileExists(AFileName) then
     FInstagramParser.UserSession.LoadFromFile(AFileName); // No need authorise every test...
-  FInstagramParser.Login;
+  FInstagramParser._Login();
   FInstagramParser.UserSession.SaveToFile(AFileName);
   AssertTrue('Login is not succesful!', FInstagramParser.Logged);
   Sleep(1000); // to avoid ban from Instagram
@@ -171,7 +171,7 @@ var
   jsonStories: TJSONArray;
 begin
   FInstagramParser.ParseGetAccount(TargetUsername);
-  jsonStories:=FInstagramParser.getStoriesForUser(FInstagramParser.UserID);
+  jsonStories:=FInstagramParser._getStoriesForUser(FInstagramParser.UserID);
   if Assigned(jsonStories) then
   begin
     SaveJSONObject(jsonStories, '~Stories.json');

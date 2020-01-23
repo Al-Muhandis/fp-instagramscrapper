@@ -16,6 +16,8 @@ type
   { TBaseHTTPClient }
 
   TBaseHTTPClient=class(TComponent)
+  private
+    FUserAgent: String;
   protected
     function GetAllowRedirect: Boolean; virtual; abstract;
     function GetCookies: TStrings; virtual; abstract;
@@ -54,6 +56,7 @@ type
     property HTTPProxyUsername: String read GetHTTPProxyUsername write SetHTTPProxyUsername;
     property HTTPProxyPassword: String read GetHTTPProxyPassword write SetHTTPProxyPassword;
     property InternalHTTPClient: TObject read GetInternalHTTPClient;
+    property UserAgent: String read FUserAgent write FUserAgent;
   end;
 
 implementation
