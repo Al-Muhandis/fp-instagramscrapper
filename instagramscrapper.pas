@@ -543,6 +543,7 @@ var
   S: String;
 begin
   APos:=1;
+  S:=EmptyStr;
   while ExtractBetweenKeys(AHeaders.Text, AName+'=', ';', APos, S) do
     if S<>'""' then
     begin
@@ -1311,7 +1312,8 @@ begin
   Fcsrf_token:=ASession.Values['csrftoken'];
   with FHTTPClient.Cookies do
   begin
-    Clear;
+    //Clear;
+    Assign(ASession);
     Values['ig_cb']:='1';
     Values['referer']:=BASE_URL+'/';
     Values['x-csrftoken']:=Fcsrf_token;
@@ -1338,7 +1340,7 @@ begin
   begin
     if not HTTPGetText(BASE_URL+'/') then
     begin
-      Logger.Error('Can''t get '+BASE_URL+' while logging');
+      LogMessage(etError, 'Can''t get '+BASE_URL+' while logging');
       Exit(False);
     end;
     ExtractSharedData;
@@ -1718,13 +1720,16 @@ begin
     AUserID:=FUserID;
   reel_ids.Add(AUserID);
   try
-    reels_media:=_LoginNGetStories(reel_ids);
-    try
+    try                   
+      reels_media:=_LoginNGetStories(reel_ids);
       if Assigned(reels_media) then
+      begin
         if reels_media.Count>0 then
           Result:=reels_media.Objects[0].Arrays['items'].Clone as TJSONArray;
+      end;
     except
-      Result:=nil;
+      on E: Exception do
+        LogMessage(etError, 'Authorization error. '+E.ClassName+': '+E.Message);
     end;
   finally
     reels_media.Free;

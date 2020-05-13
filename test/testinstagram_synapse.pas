@@ -13,7 +13,7 @@ uses
   FileUtil, synapsehttpclientbroker;
 
 initialization
-  TSynapseHTTPClient.RegisterClientClass;
+  //TSynapseHTTPClient.RegisterClientClass;
   RegisterTests([TTestInstagram, TTestInstagramWithProxy, TTestAuthorize]);
 
 end.

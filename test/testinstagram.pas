@@ -153,6 +153,7 @@ begin
   AssertTrue('Username or password not specified! See readme.md',
     (FInstagramParser.SessionUserName<>EmptyStr) and (FInstagramParser.SessionPassword<>EmptyStr));
   AFileName:='~cookies_'+FInstagramParser.SessionUserName+'.txt';
+  FInstagramParser.HTTPClient.UserAgent:='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0';
   if FileExists(AFileName) then
     FInstagramParser.UserSession.LoadFromFile(AFileName); // No need authorise every test...
   FInstagramParser._Login();
@@ -268,6 +269,7 @@ begin
   FInstagramParser.Logger.AppendContent:=True;
   FInstagramParser.Logger.LogType:=ltFile;
   FInstagramParser.Logger.Active:=True;
+  FInstagramParser.HTTPClient.UserAgent:='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0';
   FTargetUserName:=FConf.ReadString(s_ConfTarget, s_Username, s_SampleAccount);
   FTargetMediaShortCode:=FConf.ReadString(s_ConfTarget, s_Media, s_SampleMedia);
   Sleep(200); // to avoid ban from Instagram

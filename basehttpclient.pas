@@ -53,7 +53,8 @@ type
       const AFieldName, AFileName: string; const AStream: TStream;
       const Response: TStream); virtual; abstract;
     class function GetClientClass: TBaseClientClass;
-    class procedure RegisterClientClass;
+    class procedure RegisterClientClass;         
+    procedure SaveHTTPHeaders(const aFile: String); virtual; abstract;
     class procedure UnregisterClientClass;
     property AllowRedirect: Boolean read GetAllowRedirect write SetAllowRedirect;
     property Cookies: TStrings read GetCookies write SetCookies;

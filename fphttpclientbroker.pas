@@ -67,7 +67,8 @@ uses
 
 procedure TFCLHTTPClient.PrepareHeaders;
 begin
-  FHTTPClient.AddHeader('User-Agent', UserAgent);
+  if UserAgent<>EmptyStr then
+    FHTTPClient.AddHeader('User-Agent', UserAgent);
 end;
 {$IFDEF ExplSSL}
 procedure TFCLHTTPClient.HttpClientGetSocketHandler(Sender: TObject;

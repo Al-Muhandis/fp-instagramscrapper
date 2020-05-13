@@ -13,7 +13,7 @@ uses
   FileUtil, fphttpclientbroker;
 
 initialization
-  TbFPHTTPClient.RegisterClientClass;
+  //TbFPHTTPClient.RegisterClientClass;
   RegisterTests([TTestInstagram, TTestAuthorize]);
 
 end.

@@ -53,6 +53,7 @@ type
     function FormPost(const URL: string; FormData: TStrings): String; override;
     function Get(const AUrl: String): String; override;
     function Post(const URL: string): String; override;
+    procedure SaveHTTPHeaders(const aFile: String); override;
     procedure StreamFormPost(const AURL: string; FormData: TStrings; const AFieldName,
       AFileName: string; const AStream: TStream; const Response: TStream); override;
   end;
@@ -74,6 +75,7 @@ constructor TSynapseHTTPClient.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FHTTPClient:=THTTPSend.Create;
+  FHTTPClient.Protocol:='1.1';
   FRequestHeaders:=TStringList.Create;
   FRequestHeaders.NameValueSeparator:=':';
   FResponseHeaders:=TStringList.Create;
@@ -182,6 +184,29 @@ begin
   end;
 end;
 
+procedure TSynapseHTTPClient.SaveHTTPHeaders(const aFile: String);
+var
+  aHeaders: TStringList;
+begin
+  aHeaders:=TStringList.Create;
+  try
+    aHeaders.Add('_______________________Cookies:_______________________');
+    aHeaders.AddStrings(FHTTPClient.Cookies);
+    aHeaders.Add('_______________________Headers:_______________________');
+    aHeaders.AddStrings(FHTTPClient.Headers);   
+    aHeaders.Add('_______________________Other:_______________________');
+    aHeaders.AddStrings('Mime type: '+FHTTPClient.MimeType);   
+    aHeaders.AddStrings('Protocol: '+FHTTPClient.Protocol);
+    aHeaders.AddStrings('Proxy: '+FHTTPClient.ProxyHost+':'+FHTTPClient.ProxyPort); 
+    aHeaders.Add('_______________________Response:_______________________');
+    aHeaders.AddStrings('Code: '+FHTTPClient.ResultCode.ToString);          
+    aHeaders.AddStrings('String: '+FHTTPClient.ResultString);
+    aHeaders.SaveToFile(aFile);
+  finally             
+    aHeaders.Free;
+  end;
+end;
+
 procedure TSynapseHTTPClient.StreamFormPost(const AURL: string; FormData: TStrings;
   const AFieldName, AFileName: string; const AStream: TStream; const Response: TStream);
 begin
@@ -190,10 +215,14 @@ end;
 
 procedure TSynapseHTTPClient.BeforeRequest;
 begin
+  if UserAgent<>EmptyStr then
+    FHTTPClient.UserAgent:=UserAgent;
   FHTTPClient.Document.Clear;
+  FHTTPClient.Clear;
   FHTTPClient.Headers.AddStrings(FRequestHeaders, True);
   FResponseHeaders.Clear;
   FHTTPClient.Sock.SSL.SSLType:=LT_TLSv1_2;
+  FHTTPClient.MimeType:='text/html; charset=utf-8';
 end;
 
 function TSynapseHTTPClient.{%H-}GetAllowRedirect: Boolean;
