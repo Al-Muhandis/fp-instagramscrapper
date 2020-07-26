@@ -16,16 +16,18 @@ type
     FConf: TMemIniFile;
     FInstagramParser: TInstagramParser;
     FTargetMediaShortCode: String;
+    FTargetUrl: String;
     FTargetUserName: String;
     procedure SaveJSONObject(AData: TJSONData; const AFileName: String);
   protected
     procedure SetUp; override;
     procedure TearDown; override;
   public
-    procedure AccountProperties;
-    procedure MediaProperties;
+    procedure AccountProperties(const aFileName: String = '~AccountProperties.txt');
+    procedure MediaProperties(const aFileName: String = '~MediaProperties.txt');
     property TargetUsername: String read FTargetUserName;
     property TargetMedia: String read FTargetMediaShortCode;
+    property TargetUrl: String read FTargetUrl;
   end;
 
   { TTestInstagram }
@@ -35,6 +37,7 @@ type
     procedure TestGetParseJSONAccount;
     procedure TestGetParseJSONMedia;
     procedure TestGetParseComments;
+    procedure TestGetParseUrl;
     procedure TestGetParseMultiple;
   end;
 
@@ -58,15 +61,19 @@ type
 implementation
 
 uses
-  FileUtil, eventlog, URIParser;
+  FileUtil, eventlog, URIParser, strutils
+  ;
 
 const
   s_SampleAccount='natgeo';
   s_SampleMedia='BqRpCX2gfsq';
-  s_NotParsed='Not parsed';
+  S_SampleUrl='https://www.instagram.com/p/CAMgaUoj3b3/';
+  s_NotParsed='Not parsed'; 
+  s_NotUrl='This not instagram url';
   s_NilJSON='JSON data is nil!';
   s_ConfTarget='Target';
   s_Media='Media';
+  s_Url='Url';
   s_Username='Username';
   s_Session='Session';
   s_Password='Password';
@@ -134,6 +141,26 @@ begin
   SaveJSONObject(FInstagramParser.CommentList, '~comments.json');
 end;
 
+procedure TTestInstagram.TestGetParseUrl;
+var
+  aJSON: TJSONObject;
+begin
+  AssertTrue(s_NotUrl, FInstagramParser.IsInstagramUrl(TargetUrl));
+  AssertTrue(s_NotParsed, FInstagramParser.GetDataFromUrl);
+  if AnsiContainsStr(TargetUrl, '/p/') or AnsiContainsStr(TargetUrl, '/tv/') then
+  begin
+    MediaProperties('~Url_MediaProperties.txt');
+    aJSON:=FInstagramParser.jsonPost
+  end
+  else
+    if AnsiContainsStr(TargetUrl, 'https://www.instagram.com/') then
+    begin   
+      AccountProperties('~Url_AccountProperties.txt');
+      aJSON:=FInstagramParser.jsonUser;
+    end;
+  SaveJSONObject(aJSON, '~UrlJSONData.json');
+end;
+
 procedure TTestInstagram.TestGetParseMultiple;
 begin
   TestGetParseJSONAccount;
@@ -182,7 +209,7 @@ begin
     Fail('json stories array is nil!');
 end;
 
-procedure TTestInstagramBase.AccountProperties;
+procedure TTestInstagramBase.AccountProperties(const aFileName: String);
 var
   AProperties: TStringList;
   i: Integer;
@@ -201,14 +228,14 @@ begin
       AProperties.Values['Image'+IntToStr(i)]:=FInstagramParser.Images[i];
     for i:=0 to FInstagramParser.Videos.Count-1 do
       AProperties.Values['Video'+IntToStr(i)]:=FInstagramParser.Videos[i];
-    AProperties.SaveToFile('~AccountProperties.txt');
+    AProperties.SaveToFile(aFileName);
     AssertTrue('Empty account properties', FInstagramParser.Username<>EmptyStr);
   finally
     AProperties.Free;
   end;
 end;
 
-procedure TTestInstagramBase.MediaProperties;
+procedure TTestInstagramBase.MediaProperties(const aFileName: String);
 var
   AProperties: TStringList;
   i: Integer;
@@ -234,7 +261,7 @@ begin
       AProperties.Values['Image'+IntToStr(i)]:=FInstagramParser.Images[i];
     for i:=0 to FInstagramParser.Videos.Count-1 do
       AProperties.Values['Video'+IntToStr(i)]:=FInstagramParser.Videos[i];
-    AProperties.SaveToFile('~MediaProperties.txt');
+    AProperties.SaveToFile(aFileName);
     CheckNotEquals(FInstagramParser.Images.Count+FInstagramParser.Videos.Count, 0,
       'Empty media content');
     SaveJSONObject(FInstagramParser.CommentList, '~comments.json');
@@ -272,7 +299,8 @@ begin
   FInstagramParser.HTTPClient.UserAgent:='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0';
   FTargetUserName:=FConf.ReadString(s_ConfTarget, s_Username, s_SampleAccount);
   FTargetMediaShortCode:=FConf.ReadString(s_ConfTarget, s_Media, s_SampleMedia);
-  Sleep(200); // to avoid ban from Instagram
+  FTargetUrl:=FConf.ReadString(s_ConfTarget,  s_Url, S_SampleUrl);
+  Sleep(1000); // to avoid ban from Instagram
 end;
 
 procedure TTestInstagramBase.TearDown;

@@ -656,7 +656,7 @@ begin
     FPostCaption:=EmptyStr;
     if FjsonPost.Find('edge_media_to_caption', jo) then
       for jsonEnum in jo.Arrays['edges'] do
-        FPostCaption+=(jsonEnum.Value as TJSONObject).Objects['node'].Strings['text'];
+        {%H-}FPostCaption+=UnicodeString((jsonEnum.Value as TJSONObject).Objects['node'].Strings['text']){%H-};
     FMaxID:=0;
     if FjsonPost.Find('edge_sidecar_to_children', jo) then
       for jsonEnum in jo.Arrays['edges'] do
@@ -1755,8 +1755,7 @@ begin
   variables:=TJSONObject.Create(['user_id', AUserID, 'include_chaining', False,
     'include_reel', True, 'include_suggested_users', False, 'include_logged_out_extras', False,
     'include_highlight_reels', True]);
-  HL_reels:=getEdgesFromGraphQueryHash(QryHash_HLStoriesIDs, variables,
-      'data.user.edge_highlight_reels.edges');
+  HL_reels:=getEdgesFromGraphQueryHash(QryHash_HLStoriesIDs, variables, 'data.user.edge_highlight_reels.edges');
   variables.Free;
   if Assigned(HL_reels) then
   begin
