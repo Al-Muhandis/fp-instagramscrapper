@@ -250,6 +250,15 @@ const
 
 //  url_privateinfo_by_id='https://i.instagram.com/api/v1/users/{user_id}/info/'; No longer available!
 
+Function ContainsStrEx(const AText: String; const ASubTexts: array of String): Boolean;
+var
+  s: String;
+begin
+  Result:=False;
+  for s in ASubTexts do
+    if ContainsStr(AText, s) then
+      Exit(True);
+end;
 
 procedure StrToFile(const S, AFileName: String);
 var
@@ -1197,7 +1206,7 @@ begin
   begin
     APos:=1;
     if ExtractBetweenKeys(S, 'content="', '"', APos, S1) then
-      if AnsiContainsStr(S1, '/p/') or AnsiContainsStr(S1, '/tv/') then
+      if ContainsStrEx(S1, ['/p/', '/tv/', '/reel/']) then
         ExtractPostData
       else
         if AnsiContainsStr(S1, 'https://www.instagram.com/') then
@@ -1214,19 +1223,24 @@ function TInstagramParser.IsInstagram: Boolean;
 var
   i: Integer;
   AUrl, p: String;
+
+  function ContainUrlPart(const aPart: String): Boolean;
+  begin
+    Result:=ContainsStr(AURL, aPart);
+    if Result then
+      p:=aPart;
+  end;
+
 begin
   if AnsiStartsStr(InstgrmStart, FUrl) or AnsiStartsStr(InstgrmStart1, FUrl) then
   begin
     Result:=True;
     i:=1;
-    AUrl:=IncludeTrailingPathDelimiter(FUrl);
-    if AnsiContainsStr(AUrl, '/p/') then
-      p:='/p/'
-    else
-      if AnsiContainsStr(AUrl, '/tv/') then
-        p:='/tv/'
-      else
-        p:=EmptyStr;
+    AUrl:=IncludeTrailingPathDelimiter(FUrl); 
+    p:=EmptyStr;
+    if not ContainUrlPart('/p/') then
+      if not ContainUrlPart('/tv/') then
+        ContainUrlPart('/reel/');
     if (p=EmptyStr) or not ExtractBetweenKeys(AUrl, p, '/', i, FShortcode) then
     begin
       FShortcode:='';
