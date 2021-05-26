@@ -157,7 +157,8 @@ type
 //    function PrivateInfoByID(AccountID: Int64): Boolean; No longer available!
     procedure SetUrlFromProfile(const Username: String);
     class function ThumbUrlFromMedias(ANode: TJSONObject): String;
-    function UrlFromUsername(const AUsername: String = ''): String;
+    function UrlFromUsername: String;
+    class function UrlFromUsername(const AUsername: String): String;
     class function UrlFromShortcode(const AShortcode: String): String;
     procedure withCredentials(const User, Password: String);
     property UserID: Int64 read FUserID;
@@ -1841,15 +1842,14 @@ begin
   end;
 end;
 
-function TInstagramParser.UrlFromUsername(const AUsername: String): String;
-var
-  S: String;
+function TInstagramParser.UrlFromUsername: String;
 begin
-  if AUsername=EmptyStr then
-    S:=FUsername
-  else
-    S:=AUsername;
-  Result:=InstgrmStart1+Trim(S)+'/';
+  Result:=InstgrmStart1+Trim(FUsername)+'/';
+end;
+
+class function TInstagramParser.UrlFromUsername(const AUsername: String): String;
+begin
+  Result:=InstgrmStart1+Trim(AUsername)+'/';
 end;
 
 class function TInstagramParser.UrlFromShortcode(const AShortcode: String
