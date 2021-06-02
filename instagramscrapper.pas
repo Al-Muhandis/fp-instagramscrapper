@@ -54,6 +54,7 @@ type
     FCommentList: TJSONArray;
     FHTTPClient: TBaseHTTPClient;
     FJSON_Data: TJSONObject;
+    FJSON_DataAdd: TJSONObject;
     FjsonUser: TJSONObject;
     FEndCursor: String;
     FMaxID: Int64;
@@ -93,8 +94,9 @@ type
     procedure ParseCookies(ASession: TStrings);
     procedure ParseSetCookie(AHeaders: TStrings; ASession: TStrings; const AName: String);
     function Parse_SharedData(const JSONData: String): Boolean;
+    function Parse_AddDataLoaded(const JSONData: String): Boolean;
     procedure Parse_SharedData_Profile(const JSONData: String);
-    procedure Parse_SharedData_Post(const JSONData: String);
+    procedure Parse_SharedData_Post(const JSONData: String; const JSONDataAdditional: String = '');
     function Parse_jsonUser(ParseMedia: Boolean = True): Boolean;
     function Parse_jsonPost: Boolean;
     function Parse_jsonMedias: Boolean;
@@ -104,7 +106,8 @@ type
     procedure SetHTTPCode(AValue: Integer);
     procedure SetjsonMedias(AValue: TJSONObject);
     procedure SetjsonPost(AValue: TJSONObject);
-    procedure SetJSON_Data(AValue: TJSONObject);
+    procedure SetJSON_Data(AValue: TJSONObject); 
+    procedure SetJSON_DataAdd(AValue: TJSONObject);
     procedure SetjsonUser(AValue: TJSONObject);
     procedure SetLogged(AValue: Boolean);
     procedure SetLogger(AValue: TEventLog);
@@ -186,7 +189,8 @@ type
     property SessionUserName: String read FSessionUserName write SetSessionUserName;
     property SessionPassword: String read FSessionPassword write SetSessionPassword;
     property UserSession: TStrings read FUserSession;
-    property JSON_Data: TJSONObject read FJSON_Data write SetJSON_Data;
+    property JSON_Data: TJSONObject read FJSON_Data write SetJSON_Data; 
+    property JSON_DataAdd: TJSONObject read FJSON_DataAdd write SetJSON_DataAdd;
     property jsonUser: TJSONObject read FjsonUser write SetjsonUser;
     property jsonPost: TJSONObject read FjsonPost write SetjsonPost;
     property jsonMedias: TJSONObject read FjsonMedias write SetjsonMedias;
@@ -588,6 +592,25 @@ begin
   end;
 end;
 
+function TInstagramParser.Parse_AddDataLoaded(const JSONData: String): Boolean;
+var
+  p: TJSONParser;
+begin
+  try
+    p:=TJSONParser.Create(JSONData, DefaultOptions);
+    try
+      JSON_DataAdd:=nil;
+      JSON_DataAdd:=p.Parse as TJSONObject;
+      Result:=True;
+    finally
+      p.Free;
+    end;
+  except
+    LogMessage(etError, 'Failed to parse additional JSON data: "'+JSONData+'"');
+    Result:=False;
+  end;
+end;
+
 procedure TInstagramParser.Parse_SharedData_Profile(const JSONData: String);
 begin
   if Parse_SharedData(JSONData) then
@@ -605,11 +628,19 @@ begin
     end;
 end;
 
-procedure TInstagramParser.Parse_SharedData_Post(const JSONData: String);
+procedure TInstagramParser.Parse_SharedData_Post(const JSONData: String; const JSONDataAdditional: String);
+var
+  aPostPageArray: TJSONArray;
 begin
   if Parse_SharedData(JSONData) then
     try
-      jsonPost:=FJSON_Data.Objects['entry_data'].Arrays['PostPage'].Objects[0].Objects['graphql'].Objects['shortcode_media'].Clone as TJSONObject;
+      aPostPageArray:=FJSON_Data.Objects['entry_data'].Arrays['PostPage'];
+      if aPostPageArray.Count>0 then
+        jsonPost:=aPostPageArray.Objects[0].Objects['graphql'].Objects['shortcode_media'].Clone as TJSONObject
+      else begin
+        if not JSONDataAdditional.IsEmpty and Parse_AddDataLoaded(JSONDataAdditional) then
+          jsonPost:=FJSON_DataAdd.Objects['graphql'].Objects['shortcode_media'].Clone as TJSONObject;
+      end;
       if not Parse_jsonPost then
         LogMessage(etError, 'Failed to parse json media post data: '+jsonPost.AsJSON);
     except
@@ -760,8 +791,7 @@ end;
 procedure TInstagramParser.SetJSON_Data(AValue: TJSONObject);
 begin
   if FJSON_Data=AValue then Exit;
-  if Assigned(FJSON_Data) then
-    FJSON_Data.Free;
+  FJSON_Data.Free;
   FJSON_Data:=AValue;
 end;
 
@@ -868,11 +898,6 @@ begin
 
   FUserSession := TStringList.Create;
 
-  FJSON_Data:=nil;
-  FjsonUser:=nil;
-  FjsonPost:=nil;
-  FjsonMedias:=nil;
-
   FEndCursor:=EmptyStr;
   Fcsrf_token:=EmptyStr;
 
@@ -894,6 +919,7 @@ begin
   jsonPost:=nil;
   jsonUser:=nil;
   JSON_Data:=nil;
+  JSON_DataAdd:=nil;
   FUserSession.Free;
   FHTTPClient.Free;
   FCommentList.Free;
@@ -1203,7 +1229,8 @@ var
 begin
   Result:=False;
   APos:=1;
-  if ExtractBetweenKeys(FResponse, '<meta property="og:url"', '/>', APos, S) then
+  if ExtractBetweenKeys(FResponse, '<meta property="og:url"', '/>', APos, S) or
+    ExtractBetweenKeys(FResponse, '<meta property="al:android:url"', '/>', APos, S) then
   begin
     APos:=1;
     if ExtractBetweenKeys(S, 'content="', '"', APos, S1) then
@@ -1275,6 +1302,13 @@ begin
     if aGisToken<>EmptyStr then
       FHTTPClient.AddHeader('x-instagram-gis', aGisToken);
   end;
+end;
+
+procedure TInstagramParser.SetJSON_DataAdd(AValue: TJSONObject);
+begin
+  if FJSON_DataAdd=AValue then Exit;
+  FJSON_DataAdd.Free;
+  FJSON_DataAdd:=AValue;
 end;
 
 function TInstagramParser._getStories(AReel_ids: TJSONArray): TJSONArray;
