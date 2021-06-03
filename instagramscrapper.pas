@@ -1215,12 +1215,20 @@ var
 
   procedure ExtractPostData;
   var
-    js: String;
+    js, js1: String;
+    i: SizeInt;
   begin
     APos:=1;
     if ExtractBetweenKeys(FResponse, 'window._sharedData = ', ';</script>', APos, js) then
     begin
-      Parse_SharedData_Post(js);
+      js1:=EmptyStr;
+      if ExtractBetweenKeys(FResponse, 'additionalDataLoaded(''', ');</script>', APos, js1) then
+      begin
+        i:=PosEx('{"graphql"', js1);
+        if i>0 then
+          js1:=Copy(js1, i, Length(js1)-i+1);
+      end;
+      Parse_SharedData_Post(js, js1);
       Result:=True;
       Exit;
     end;
