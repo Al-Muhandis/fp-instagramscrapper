@@ -1846,7 +1846,7 @@ begin
   if _Login() then
     Result:=_getStories(reel_ids)
   else
-    LogMessage(etError, 'Failed to login');
+    LogMessage(etError, 'Failed to login. Session '+SessionUserName);
 end;
 
 function TInstagramParser.LoginNGetHLStories(AUserID: Int64): Tjson_HLStories;

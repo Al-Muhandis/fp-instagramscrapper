@@ -4,7 +4,7 @@ unit fphttpclientbroker;
 
 interface
 
-{$IF FPC_FULLVERSION < 30300}{$DEFINE ExplSSL}{$else}{$DEFINE SSLOpenSockets}{$ENDIF}
+{$IF FPC_FULLVERSION < 30200}{$DEFINE ExplSSL}{$else}{$DEFINE SSLOpenSockets}{$ENDIF}
 
 uses
   Classes, SysUtils{$IFDEF ExplSSL}, ssockets{$ENDIF}, basehttpclient, fphttpclient;
