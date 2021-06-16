@@ -45,6 +45,7 @@ type
     FShortcode: String;
     FSessionPassword: String;
     FSessionUserName: String;
+    FStoryID: Int64;
     FUrl: String;
     FUsername: String;
     FUserID: Int64;
@@ -149,7 +150,6 @@ type
     function CheckLogin(): Boolean;
     function GetPostUrl(APostID: String = ''): String;
     function getStories(AReel_ids: TJSONArray = nil): TJSONArray;
-    function getStoriesForUser(AUserID: Int64 = 0): TJSONArray;
     function _getStoriesForUser(AUserID: Int64 = 0): TJSONArray;
     function getHLStoriesForUser(AUserID: Int64 = 0): Tjson_HLStories;
     function getHLStoriesForUser_internal(AUserID: Int64 = 0): Tjson_HLStories;
@@ -203,6 +203,7 @@ type
     property HTTPCode: Integer read FHTTPCode write SetHTTPCode; deprecated; // Use HTTPClient.ResponseStatusCode instead
     property HTTPClient: TBaseHTTPClient read FHTTPClient;
     property Response: String read FResponse;
+    property StoryID: Int64 read FStoryID;
   end;
 
 const
@@ -254,6 +255,25 @@ const
   //QryHash_Comments1 = '33ba35852cb50da46f5b5e889df7d159';
 
 //  url_privateinfo_by_id='https://i.instagram.com/api/v1/users/{user_id}/info/'; No longer available!
+
+function IncludeTrailingURLDelimiter(Const Path : String) : String;
+
+Var
+  l : Integer;
+
+begin
+  Result:=Path;
+  l:=Length(Result);
+  If (L=0) or not CharInSet(Result[l],AllowDirectorySeparators) then
+{$ifdef SYSUTILSUNICODE}
+    Result:=Result+'/';
+{$else SYSUTILSUNICODE}
+    begin
+      SetLength(Result,l+1);
+      Result[l+1]:='/';
+    end;
+{$endif SYSUTILSUNICODE}
+end;
 
 Function ContainsStrEx(const AText: String; const ASubTexts: array of String): Boolean;
 var
@@ -852,7 +872,7 @@ begin
     FUrl:='https://'+RightStr(FUrl, Length(FUrl)-Length('http://'));
   if AnsiStartsText('instagram.com/', FUrl) then
     FUrl:='https://'+FUrl;
-  FUrl:=IncludeTrailingPathDelimiter(FUrl);
+  FUrl:=IncludeTrailingURLDelimiter(FUrl);
 end;
 
 function TInstagramParser.getCommentsBeforeCommentIdByCode(ACount: Integer;
@@ -1258,7 +1278,7 @@ end;
 function TInstagramParser.IsInstagram: Boolean;
 var
   i: Integer;
-  AUrl, p: String;
+  AUrl, p, aIDString: String;
 
   function ContainUrlPart(const aPart: String): Boolean;
   begin
@@ -1272,18 +1292,27 @@ begin
   begin
     Result:=True;
     i:=1;
-    AUrl:=IncludeTrailingPathDelimiter(FUrl); 
+    AUrl:=IncludeTrailingURLDelimiter(FUrl);
     p:=EmptyStr;
+    FStoryID:=0;
+    FShortcode:=EmptyStr;
+    FUsername:=EmptyStr;
     if not ContainUrlPart('/p/') then
       if not ContainUrlPart('/tv/') then
-        ContainUrlPart('/reel/');
+        if not ContainUrlPart('/reel/') then
+          if ContainUrlPart('/stories/') then
+          begin
+            if ExtractBetweenKeys(AUrl, p, '/', i, FUsername) then
+            begin
+              i:=1;
+              Result:=False;
+              if ExtractBetweenKeys(AURL, p+FUsername+'/', '/', i, aIDString) then
+                Result:=TryStrToInt64(aIDString, FStoryID);
+              Exit;
+            end;
+          end;
     if (p=EmptyStr) or not ExtractBetweenKeys(AUrl, p, '/', i, FShortcode) then
-    begin
-      FShortcode:='';
-      i:=1;
-      if not ExtractBetweenKeys(AUrl, 'instagram.com/', '/', i, FUsername) then
-        FUsername:=''
-    end;
+      ExtractBetweenKeys(AUrl, 'instagram.com/', '/', i, FUsername);
   end
   else
     Result:=False;
@@ -1740,30 +1769,6 @@ begin
     variables.Free;
     if Assigned(jsonResponse) then
       jsonResponse.Free;
-  end;
-end;
-
-function TInstagramParser.getStoriesForUser(AUserID: Int64): TJSONArray;
-var
-  reel_ids, reels_media: TJSONArray;
-begin
-  Result:=nil;
-  reel_ids:=TJSONArray.Create;
-  if AUserID=0 then
-    AUserID:=FUserID;
-  reel_ids.Add(AUserID);
-  try
-    reels_media:=LoginNGetStories(reel_ids);
-    try
-      if Assigned(reels_media) then
-        if reels_media.Count>0 then
-          Result:=reels_media.Objects[0].Arrays['items'].Clone as TJSONArray;
-    except
-      Result:=nil;
-    end;
-  finally
-    reels_media.Free;
-    reel_ids.Free;
   end;
 end;
 

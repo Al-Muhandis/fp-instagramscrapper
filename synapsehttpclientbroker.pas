@@ -13,10 +13,13 @@ type
 
   TSynapseHTTPClient = class(TBaseHTTPClient)
   private
+    FAllowRedirect: Boolean;
     FHTTPClient: THTTPSend;
+    FRedirectCounter: Integer;
     FRequestBody: TStream;
     FRequestHeaders: TStrings;
     FResponseHeaders: TStrings;
+    function CheckRedirect(out aRealURL: String): Boolean;
   protected
     procedure BeforeRequest;
     function GetAllowRedirect: Boolean; override;
@@ -137,13 +140,17 @@ end;
 function TSynapseHTTPClient.Get(const AUrl: String): String;
 var
   Response: TStringList;
+  aRealUrl: String;
 begin
   BeforeRequest;
   if FHTTPClient.HTTPMethod('GET', AUrl) then
   begin
     Response:=TStringList.Create;
     try
-      Response.LoadFromStream(FHTTPClient.Document);
+      if CheckRedirect(aRealUrl) then
+        Exit(Get(aRealUrl))
+      else
+        Response.LoadFromStream(FHTTPClient.Document);
       FResponseHeaders.AddStrings(FHTTPClient.Headers, True);
       Result:=Response.Text;
       {$IFDEF DEBUG}FResponseHeaders.SaveToFile('~ResponseHeaders.txt');{$ENDIF}
@@ -213,6 +220,37 @@ begin
   HttpPostFile(AURL, FormData, AFieldName, AFileName, AStream, Response);
 end;
 
+function TSynapseHTTPClient.CheckRedirect(out aRealURL: String): Boolean;
+var
+  i: Integer;
+begin
+  Result:=False;
+  if FRedirectCounter>=5 then
+  begin
+    FRedirectCounter:=0;
+    Exit;
+  end;
+  if (FHTTPClient.ResultCode = 301) or (FHTTPClient.ResultCode = 302) then
+  begin
+    aRealURL:=EmptyStr;
+    // Check the headers for the Location header
+    for i := 0 to FHTTPClient.Headers.Count -1 do
+    begin
+      // Extract the URL
+      if Copy(FHTTPClient.Headers[i], 1, 8) = 'Location' then
+        aRealUrl := Copy(FHTTPClient.Headers[i], 11, Length(FHTTPClient.Headers[i]) - 11);
+    end;
+    // If we have a URL, run it through the same function
+    if Length(aRealUrl) > 1 then
+    begin
+      Result:=True;
+      Inc(FRedirectCounter);
+    end;
+  end;
+  if not Result then
+    FRedirectCounter:=0;
+end;
+
 procedure TSynapseHTTPClient.BeforeRequest;
 begin
   if UserAgent<>EmptyStr then
@@ -227,7 +265,7 @@ end;
 
 function TSynapseHTTPClient.{%H-}GetAllowRedirect: Boolean;
 begin
-  { todo }
+  Result:=FAllowRedirect;
 end;
 
 function TSynapseHTTPClient.GetCookies: TStrings;
@@ -292,7 +330,7 @@ end;
 
 procedure TSynapseHTTPClient.SetAllowRedirect(AValue: Boolean);
 begin
-  { todo }
+  FAllowRedirect:=AValue;
 end;
 
 procedure TSynapseHTTPClient.SetCookies(AValue: TStrings);

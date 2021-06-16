@@ -145,6 +145,7 @@ procedure TTestInstagram.TestGetParseUrl;
 var
   aJSON: TJSONObject;
 begin
+  aJSON:=nil;
   AssertTrue(s_NotUrl, FInstagramParser.IsInstagramUrl(TargetUrl));
   AssertTrue(s_NotParsed, FInstagramParser.GetDataFromUrl);
   if AnsiContainsStr(TargetUrl, '/p/') or AnsiContainsStr(TargetUrl, '/tv/') then
