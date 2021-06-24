@@ -24,6 +24,7 @@ type
     FFollows: Integer;
     FFullName: String;
     FHTTPCode: Integer;
+    FIsHighLights: Boolean;
     FjsonMedias: TJSONObject;
     FjsonPost: TJSONObject;
     FLogged: Boolean;
@@ -96,6 +97,7 @@ type
     procedure ParseSetCookie(AHeaders: TStrings; ASession: TStrings; const AName: String);
     function Parse_SharedData(const JSONData: String): Boolean;
     function Parse_AddDataLoaded(const JSONData: String): Boolean;
+    procedure Parse_SharedData_Other(const JSONData: String);
     procedure Parse_SharedData_Profile(const JSONData: String);
     procedure Parse_SharedData_Post(const JSONData: String; const JSONDataAdditional: String = '');
     function Parse_jsonUser(ParseMedia: Boolean = True): Boolean;
@@ -189,6 +191,7 @@ type
     property SessionUserName: String read FSessionUserName write SetSessionUserName;
     property SessionPassword: String read FSessionPassword write SetSessionPassword;
     property UserSession: TStrings read FUserSession;
+    property IsHighlights: Boolean read FIsHighLights;
     property JSON_Data: TJSONObject read FJSON_Data write SetJSON_Data; 
     property JSON_DataAdd: TJSONObject read FJSON_DataAdd write SetJSON_DataAdd;
     property jsonUser: TJSONObject read FjsonUser write SetjsonUser;
@@ -648,6 +651,26 @@ begin
     end;
 end;
 
+
+procedure TInstagramParser.Parse_SharedData_Other(const JSONData: String);
+var
+  aUser: TJSONObject;
+begin
+  if Parse_SharedData(JSONData) then
+    try
+      aUser:=FJSON_Data.Objects['entry_data'].Arrays['StoriesPage'].Objects[0].Objects['user'];
+      FUsername:=aUser.Strings[s_Username];
+      FUserID:=aUser.Int64s[s_ID];
+    except
+      on E: Exception do
+      begin
+        LogMessage(etError, 'Unable to parse entry data. '+ e.ClassName+': '+e.Message);
+        LogMessage(etDebug, FJSON_Data.AsJSON);
+        FjsonUser:=nil;
+      end;
+    end;
+end;
+
 procedure TInstagramParser.Parse_SharedData_Post(const JSONData: String; const JSONDataAdditional: String);
 var
   aPostPageArray: TJSONArray;
@@ -688,7 +711,7 @@ begin
     FProfilePic:=FjsonUser.Get('profile_pic_url_hd', '');
     if FProfilePic=EmptyStr then
        FProfilePic:=FjsonUser.Get('profile_pic_url', '');
-    FUsername:=FjsonUser.Strings['username'];
+    FUsername:=FjsonUser.Strings[s_Username];
 
     if ParseMedia then
       if FjsonUser.Find('edge_owner_to_timeline_media', jo) then //media
@@ -1233,6 +1256,19 @@ var
     end;
   end;
 
+  procedure ExtractOtherData;
+  var
+    js: String;
+  begin
+    APos:=1;
+    if ExtractBetweenKeys(FResponse, 'window._sharedData = ', ';</script>', APos, js) then
+    begin
+      Parse_SharedData_Other(js);
+      Result:=True;
+      Exit;
+    end;
+  end;
+
   procedure ExtractPostData;
   var
     js, js1: String;
@@ -1265,8 +1301,11 @@ begin
       if ContainsStrEx(S1, ['/p/', '/tv/', '/reel/']) then
         ExtractPostData
       else
-        if AnsiContainsStr(S1, 'https://www.instagram.com/') then
-          ExtractProfileData;
+        if ContainsStrEx(S1, ['/stories/highlights/']) then
+          ExtractOtherData
+        else
+          if AnsiContainsStr(S1, 'https://www.instagram.com/') then
+            ExtractProfileData;
   end;
   if not Result then
   begin
@@ -1297,19 +1336,29 @@ begin
     FStoryID:=0;
     FShortcode:=EmptyStr;
     FUsername:=EmptyStr;
+    FIsHighLights:=False;
     if not ContainUrlPart('/p/') then
       if not ContainUrlPart('/tv/') then
         if not ContainUrlPart('/reel/') then
           if ContainUrlPart('/stories/') then
           begin
-            if ExtractBetweenKeys(AUrl, p, '/', i, FUsername) then
+            i:=1;
+            Result:=False;
+            aIDString:=EmptyStr;
+            if ContainUrlPart('/stories/highlights/') then
             begin
-              i:=1;
-              Result:=False;
-              if ExtractBetweenKeys(AURL, p+FUsername+'/', '/', i, aIDString) then
-                Result:=TryStrToInt64(aIDString, FStoryID);
-              Exit;
-            end;
+              Result:=ExtractBetweenKeys(AURL, p, '/', i, aIDString);
+              FIsHighLights:=True;
+            end
+            else
+              if ExtractBetweenKeys(AUrl, p, '/', i, FUsername) then
+              begin
+                i:=1;
+                Result:=ExtractBetweenKeys(AURL, p+FUsername+'/', '/', i, aIDString);
+              end;
+            if Result then
+              Result:=TryStrToInt64(aIDString, FStoryID);
+            Exit;
           end;
     if (p=EmptyStr) or not ExtractBetweenKeys(AUrl, p, '/', i, FShortcode) then
       ExtractBetweenKeys(AUrl, 'instagram.com/', '/', i, FUsername);
