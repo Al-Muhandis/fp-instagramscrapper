@@ -158,7 +158,7 @@ type
     function LoginNGetStories(reel_ids: TJSONArray = nil): TJSONArray;
     function _LoginNGetStories(reel_ids: TJSONArray = nil): TJSONArray;
     function LoginNGetHLStories(AUserID: Int64 = 0): Tjson_HLStories;
-    function LoginNGetMediaCommentsByCode(ACount: Integer = 10; AMaxID: Int64 = 0): Boolean;
+    function LoginNGetMediaCommentsByCode(ACount: Integer = 10; AMaxID: Int64 = 0): Boolean; deprecated;
 //    function PrivateInfoByID(AccountID: Int64): Boolean; No longer available!
     procedure SetUrlFromProfile(const Username: String);
     class function ThumbUrlFromMedias(ANode: TJSONObject): String;
