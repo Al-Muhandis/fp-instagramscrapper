@@ -17,6 +17,7 @@ type
 
   TInstagramParser = class
   private
+    FAlwaysLogging: Boolean;
     FBiography: String;
     FCommentHasPrev: Boolean;
     FCountryCode: String;
@@ -207,6 +208,7 @@ type
     property HTTPClient: TBaseHTTPClient read FHTTPClient;
     property Response: String read FResponse;
     property StoryID: Int64 read FStoryID;
+    property AlwaysLogging: Boolean read FAlwaysLogging write FAlwaysLogging;
   end;
 
 const
@@ -946,6 +948,7 @@ begin
 
   FLogged:=False;
   FParseComments:=False;
+  FAlwaysLogging:=False;
 end;
 
 constructor TInstagramParser.Create(const AnUrl: String);
@@ -1054,6 +1057,8 @@ end;
 function TInstagramParser.GetDataFromUrl: Boolean;
 begin
   Result:=False;
+  if FAlwaysLogging then
+    _Login();
   if HttpGetText then
     Result:=GetSrcsFromHTML;
 end;
@@ -1670,6 +1675,7 @@ begin
     finally
       FHTTPCode:=FHTTPClient.ResponseStatusCode;
       {$IFDEF DEBUG}
+      StrToFile(FResponse, '~HTTPGetText_page.html');
       FHTTPClient.Cookies.SaveToFile('~HTTPGetText_Cookies.txt');
       FHTTPClient.ResponseHeaders.SaveToFile('~HTTPGetText_Response_Headers.txt');
       {$ENDIF}

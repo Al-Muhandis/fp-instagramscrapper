@@ -121,7 +121,8 @@ end;
 procedure TTestInstagram.TestGetParseJSONMedia;
 begin
   FInstagramParser.ParseComments:=True;
-  AssertTrue(s_NotParsed, FInstagramParser.ParseGetPost(TargetMedia));
+  FInstagramParser.Url:=FInstagramParser.GetPostUrl(TargetMedia);
+  AssertTrue(s_NotParsed, FInstagramParser.GetDataFromUrl);
   SaveJSONObject(FInstagramParser.jsonPost, '~media.json');
   MediaProperties;
 end;
