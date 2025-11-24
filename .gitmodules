@@ -1,0 +1,6 @@
+[submodule "use/Indy"]
+	path = use/Indy
+	url = git@github.com:IndySockets/Indy.git
+[submodule "use/synapse"]
+	path = use/synapse
+	url = git@github.com:geby/synapse.git
